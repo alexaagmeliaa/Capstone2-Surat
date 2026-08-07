@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@theme base{
+  --color-biru: #3171C6;
+  --color-birugelap: #183760;
+  --color-putih: #F3F4F1;
+  --color-gelap: #2D2D2D;
+}
+
+@layer base {
+    body {
+        font-family: "Poppins", sans-serif;
+    }
+}
