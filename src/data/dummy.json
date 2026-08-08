@@ -1,0 +1,147 @@
+{
+  "admin":{
+      "username": "admin",
+      "img": "/assets/profile/admin.webp",
+      "role": "admin",
+      "email": "admin@example.com",
+      "password": "admin123"
+  },
+
+  "user": {
+      "username": "user",
+      "img": "/assets/profile/user.webp",
+      "role": "user",
+      "email": "user@example.com",
+      "password": "user123"
+  },
+
+  "statistik": {
+    "totalPengajuan": 100,
+    "butuhDiproses": 18,
+    "suratSelesai": 82,
+    "totalMahasiswa": 321
+  },
+
+  "pengajuanTerbaru": [
+    {
+      "id": 1,
+      "nama": "Muhammad Fauzi Setiawan",
+      "nim": "10119099",
+      "jenis": "Surat Keterangan Mahasiswa Aktif",
+      "tanggal": "06 Agustus 2026",
+      "status": "Pending"
+    },
+    {
+      "id": 2,
+      "nama": "Jacky Firmansah",
+      "nim": "10119088",
+      "jenis": "Surat Pengantar Penelitian",
+      "tanggal": "05 Agustus 2026",
+      "status": "Diproses"
+    },
+    {
+      "id": 3,
+      "nama": "Mochammad Aldi",
+      "nim": "10119001",
+      "jenis": "Surat Keterangan Lulus",
+      "tanggal": "02 Agustus 2026",
+      "status": "Selesai"
+    },
+    {
+      "id": 4,
+      "nama": "Muhammad Fathulhaq Alfiqi",
+      "nim": "10119045",
+      "jenis": "Surat Pengantar Penelitian",
+      "tanggal": "01 Agustus 2026",
+      "status": "Ditolak"
+    }
+  ],
+  
+    "kategoriSurat": [
+        { 
+        "id": 1, 
+        "nama": "Surat Keterangan Mahasiswa Aktif", 
+        "deskripsi": "Surat resmi dari kampus yang menyatakan bahwa mahasiswa tersebut berstatus aktif pada semester berjalan." 
+        },
+        { 
+        "id": 2, 
+        "nama": "Surat Pengantar Penelitian", 
+        "deskripsi": "Surat pengantar untuk keperluan pengambilan data riset atau tugas akhir di instansi/perusahaan luar." 
+        },
+        { 
+        "id": 3, 
+        "nama": "Surat Keterangan Lulus (SKL)", 
+        "deskripsi": "Surat keterangan sementara bagi mahasiswa yang telah sidang skripsi sebelum ijazah resmi terbit." 
+        }
+    ],
+
+    "dataMahasiswa": [
+    {
+      "id": 1,
+      "nim": "10119099",
+      "nama": "Muhammad Fauzi Setiawan",
+      "prodi": "Teknik Informatika",
+      "angkatan": "2023",
+      "status": "Aktif"
+    },
+    {
+      "id": 2,
+      "nim": "10119088",
+      "nama": "Jacky Firmansah",
+      "prodi": "Teknik Informatika",
+      "angkatan": "2023",
+      "status": "Aktif"
+    },
+    {
+      "id": 3,
+      "nim": "10119077",
+      "nama": "Mochammad Aldi",
+      "prodi": "Sistem Informasi",
+      "angkatan": "2023",
+      "status": "Aktif"
+    },
+    {
+      "id": 4,
+      "nim": "10119066",
+      "nama": "Muhammad Fathulhaq Alfiqi",
+      "prodi": "Teknik Informatika",
+      "angkatan": "2023",
+      "status": "Aktif"
+    },
+    {
+      "id": 5,
+      "nim": "10119055",
+      "nama": "Arya Kusuma Dinata",
+      "prodi": "Sistem Informasi",
+      "angkatan": "2023",
+      "status": "Cuti"
+    }
+  ],
+
+  "notifikasi": [
+    {
+      "id": 1,
+      "type": "pengajuan",
+      "title": "Pengajuan Surat Baru",
+      "message": "Muhammad Fauzi Setiawan (10119099) mengajukan Surat Keterangan Mahasiswa Aktif.",
+      "time": "10 menit yang lalu",
+      "isRead": false
+    },
+    {
+      "id": 2,
+      "type": "pengajuan",
+      "title": "Pengajuan Surat Baru",
+      "message": "Siti Aminah (10119022) mengajukan Surat Pengantar Penelitian.",
+      "time": "1 jam yang lalu",
+      "isRead": false
+    },
+    {
+      "id": 3,
+      "type": "sistem",
+      "title": "Pembaruan Sistem",
+      "message": "Maintenance server e-surat akan dilakukan pada 10 Agustus 2026 pukul 00:00 WIB.",
+      "time": "1 hari yang lalu",
+      "isRead": true
+    }
+  ]
+}
