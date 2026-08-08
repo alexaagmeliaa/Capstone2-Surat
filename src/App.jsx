@@ -15,7 +15,7 @@ function App() {
         <Route path="/" element={<Login />} />
         
         {/* User */}
-        <Route path="/m" element={<DashboardMhs />} />
+        <Route path="/u/dashboard" element={<DashboardMhs />} />
         
         {/* Admin */}
         <Route path="/ad/dashboard" element={<DashboardAdmin />} />

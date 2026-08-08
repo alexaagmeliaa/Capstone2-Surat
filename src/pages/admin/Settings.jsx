@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import dummyData from '../../data/dummy.json'; 
 import { Bell, FileText, Info, Check } from 'lucide-react';
 
 export default function Settings() {
-  const [activeTab, setActiveTab] = useState('profil');
+  const location = useLocation();
+  
+  // Mengatur tab default. Jika ada 'state' dari router (dari klik di dropdown), pakai tab itu.
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
+
+  // Menangkap perubahan jika user klik link dari dropdown saat sudah berada di halaman ini
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state]);
 
   // Mengambil data admin & notifikasi dari JSON
   const adminData = dummyData.admin || {};
@@ -31,10 +42,10 @@ export default function Settings() {
           <div className="flex items-end">
             <button 
               onClick={() => setActiveTab('profil')}
-              className={`px-12 py-3 border border-gray-600 rounded-t-[10px] relative z-10 transition-colors focus:outline-none ${
+              className={`px-12 py-3 border border-gray-600 rounded-t-[10px] relative transition-colors focus:outline-none ${
                 activeTab === 'profil' 
-                  ? 'bg-[#F4F5F7] border-b-0 text-gray-800 -mb-[1px]' 
-                  : 'bg-[#EAECEF] border-b-gray-600 border-r-0 text-gray-500 hover:bg-[#E0E2E5]'
+                  ? 'bg-[#F4F5F7] border-b-0 text-gray-800 z-10 -mb-[1px]' 
+                  : 'bg-[#EAECEF] border-b-gray-600 border-r-0 text-gray-500 hover:bg-[#E0E2E5] z-0'
               }`}
             >
               <span className="text-[17px] font-semibold">Profil</span>
@@ -45,7 +56,7 @@ export default function Settings() {
               className={`px-12 py-3 border border-gray-600 rounded-t-[10px] relative transition-colors focus:outline-none ${
                 activeTab === 'notifikasi' 
                   ? 'bg-[#F4F5F7] border-b-0 text-gray-800 z-10 -mb-[1px]' 
-                  : 'bg-[#EAECEF] border-b-gray-600 border-l-0 text-gray-500 hover:bg-[#E0E2E5]'
+                  : 'bg-[#EAECEF] border-b-gray-600 border-l-0 text-gray-500 hover:bg-[#E0E2E5] z-0'
               }`}
             >
               <span className="text-[17px] font-semibold">Notifikasi</span>
@@ -53,7 +64,7 @@ export default function Settings() {
           </div>
 
           {/* Kotak Utama Konten */}
-          <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] p-10 shadow-sm relative min-h-[500px]">
+          <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] rounded-tr-[12px] p-10 shadow-sm relative min-h-[500px]">
             
             {/* --- ISI TAB PROFIL --- */}
             {activeTab === 'profil' && (
@@ -123,7 +134,7 @@ export default function Settings() {
                   </div>
                   <button 
                     onClick={markAllAsRead}
-                    className="flex items-center gap-2 text-[14px] font-semibold text-[#2A60A4] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors"
+                    className="flex items-center gap-2 text-[14px] font-semibold text-[#2A60A4] hover:bg-blue-50 px-4 py-2 rounded-lg transition-colors focus:outline-none"
                   >
                     <Check size={18} strokeWidth={2.5} />
                     Tandai semua dibaca
