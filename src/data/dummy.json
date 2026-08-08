@@ -10,7 +10,7 @@
   "user": {
       "username": "user",
       "img": "/assets/profile/user.webp",
-      "role": "user",
+      "role": "mahasiswa",
       "email": "user@example.com",
       "password": "user123"
   },
