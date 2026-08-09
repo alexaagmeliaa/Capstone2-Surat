@@ -94,6 +94,7 @@
       "nim": "10119099",
       "nama": "Muhammad Fauzi Setiawan",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -102,6 +103,7 @@
       "nim": "10119088",
       "nama": "Jacky Firmansah",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -110,6 +112,7 @@
       "nim": "10119077",
       "nama": "Mochammad Aldi",
       "prodi": "Sistem Informasi",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -118,6 +121,7 @@
       "nim": "10119066",
       "nama": "Muhammad Fathulhaq Alfiqi",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Karyawan",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -126,6 +130,7 @@
       "nim": "10119055",
       "nama": "Arya Kusuma Dinata",
       "prodi": "Sistem Informasi",
+      "jenis_mhs": "Karyawan",
       "angkatan": "2023",
       "status": "Cuti"
     }

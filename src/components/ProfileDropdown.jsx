@@ -88,22 +88,9 @@ export default function ProfileDropdown({ role = 'admin' }) {
               to={settingPath} 
               className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#2A60A4] rounded-lg transition-colors"
             >
-              <User size={18} />
-              Profil Saya
-            </Link>
-            
-            <Link 
-              to={settingPath} 
-              className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#2A60A4] rounded-lg transition-colors"
-            >
               <Settings size={18} />
               Pengaturan Akun
             </Link>
-            
-            <button className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#2A60A4] rounded-lg transition-colors">
-              <HelpCircle size={18} />
-              Bantuan & FAQ
-            </button>
             
           </div>
 
