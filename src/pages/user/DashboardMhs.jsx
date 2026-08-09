@@ -44,7 +44,7 @@ export default function DashboardMhs() {
               <NotificationDropdown />
               
               {/* Komponen Profil */}
-              <ProfileDropdown />
+              <ProfileDropdown role="mahasiswa" />
             </div>
             <span className="text-gray-700 font-medium text-[15px]">08 Agustus 2026</span>
           </div>
@@ -61,7 +61,7 @@ export default function DashboardMhs() {
           
           {/* Tombol Ajukan Surat (Call to Action) */}
           <Link 
-            to="/user/ajukan" 
+            to="/mhs/ajukan" 
             className="flex items-center gap-2 bg-white text-[#2A60A4] px-6 py-3.5 rounded-[12px] hover:bg-gray-100 transition-colors shadow-md font-bold text-[15px] whitespace-nowrap"
           >
             <FilePlus size={20} strokeWidth={2.5} />
@@ -109,7 +109,7 @@ export default function DashboardMhs() {
           
           <div className="px-6 py-4 flex justify-between items-center border-b-[1.5px] border-gray-400">
             <h4 className="text-[17px] font-medium text-gray-800">Status Surat Terakhir</h4>
-            <Link to="/user/riwayat" className="text-[15px] font-medium text-[#2A60A4] hover:underline">
+            <Link to="/mhs/riwayat" className="text-[15px] font-medium text-[#2A60A4] hover:underline">
               Lihat Semua Riwayat
             </Link>
           </div>

@@ -9,7 +9,7 @@ export default function DashboardAdmin() {
   const { statistik, pengajuanTerbaru } = dummyData;
 
   return (
-    <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
+    <div className="flex min-h-screen bg-putih font-sans">
       
       <Sidebar activeMenu="dashboard" />
 
@@ -30,7 +30,7 @@ export default function DashboardAdmin() {
         </header>
 
         {/* Banner */}
-        <div className="bg-[#2A5C9A] rounded-[16px] p-8 mb-8 text-white shadow-sm">
+        <div className="bg-gradient-to-r from-[#3171C6] to-[#183760] rounded-[16px] p-8 mb-8 text-white shadow-sm">
           <h3 className="text-4xl font-bold mb-2">Halo, Admin!</h3>
           <p className="text-[20px] text-white font-light tracking-wide">Berikut adalah ringkasan aktivitas administrasi surat hari ini.</p>
         </div>

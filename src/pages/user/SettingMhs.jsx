@@ -4,7 +4,7 @@ import Sidebar from '../../components/Sidebar';
 import dummyData from '../../data/dummy.json'; 
 import { FileText, Info, Check } from 'lucide-react';
 
-export default function Settings() {
+export default function SettingMhs() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
 
@@ -14,9 +14,8 @@ export default function Settings() {
     }
   }, [location.state]);
 
-  // Ambil data khusus Admin
-  const adminData = dummyData.admin || {};
-  const formattedName = adminData.username ? adminData.username.charAt(0).toUpperCase() + adminData.username.slice(1) : 'Admin';
+  const userData = dummyData.user || {};
+  const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
   
   const [notifications, setNotifications] = useState(dummyData.notifikasi || []);
 
@@ -27,14 +26,13 @@ export default function Settings() {
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
       
-      {/* Sidebar Admin (Role default adalah admin) */}
-      <Sidebar activeMenu="setting" />
+      <Sidebar activeMenu="setting" role="mahasiswa" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto">
         
         <header className="flex justify-between items-start mb-8">
           <div>
-            <h2 className="text-[44px] font-semibold text-[#2A60A4]">Settings</h2>
+            <h2 className="text-[44px] font-semibold text-[#2A60A4]">Profil Saya</h2>
           </div>
         </header>
 
@@ -68,7 +66,7 @@ export default function Settings() {
           {/* Kotak Utama Konten */}
           <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] rounded-tr-[12px] p-8 md:p-10 shadow-sm relative min-h-[500px]">
             
-            {/* --- ISI TAB PROFIL ADMIN --- */}
+            {/* --- ISI TAB PROFIL --- */}
             {activeTab === 'profil' && (
               <div className="flex flex-col lg:flex-row gap-12 animate-fade-in">
                 
@@ -76,25 +74,26 @@ export default function Settings() {
                 <div className="w-full lg:w-[30%] flex flex-col items-center pt-2">
                   <div className="w-56 h-56 rounded-full overflow-hidden border-[4px] border-[#3470B9] shadow-sm bg-white mb-6">
                     <img 
-                      src={adminData.img || "/assets/profile/default.png"} 
-                      alt="Profile Admin" 
+                      src={userData.img || "/assets/profile/default.png"} 
+                      alt="Profile" 
                       className="w-full h-full object-cover" 
                     />
                   </div>
                   <div className="text-center mb-6">
                     <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formattedName}</h3>
-                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{adminData.jabatan || 'Administrator'}</p>
+                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{userData.prodi || 'S1 - Teknik Informatika'}</p>
                   </div>
+                  {/* Tombol kembali ke warna Biru Solid */}
                   <button className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
-                    Upload Foto Baru
+                    Upload atau Drag&Drop
                   </button>
                 </div>
 
-                {/* KANAN: Form Informasi Pegawai */}
+                {/* KANAN: Form Informasi Pribadi */}
                 <div className="w-full lg:w-[70%]">
-                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pegawai</h4>
+                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pribadi</h4>
                   
-                  {/* Grid Form Terkunci */}
+                  {/* Grid Form Terkunci dengan Style Lama */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                     
                     <div>
@@ -103,33 +102,53 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">ID Pegawai / NIP</label>
-                      <input type="text" defaultValue={adminData.id_pegawai || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Induk Mahasiswa (NIM)</label>
+                      <input type="text" defaultValue={userData.nim || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
                     
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Operasional</label>
-                      <input type="email" defaultValue={adminData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Kampus</label>
+                      <input type="email" defaultValue={userData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Pekerja</label>
-                      <input type="text" defaultValue={adminData.status || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Mahasiswa</label>
+                      <input type="text" defaultValue={userData.status_aktif || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
                     </div>
 
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jabatan</label>
-                      <input type="text" defaultValue={adminData.jabatan || 'Admin'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Angkatan</label>
+                      <input type="text" defaultValue={userData.angkatan || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Telepon</label>
-                      <input type="text" defaultValue={adminData.no_telp || '-'} className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Mahasiswa</label>
+                      <input type="text" defaultValue={userData.jenis_mhs || 'Regular'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Kelamin</label>
+                      <input type="text" defaultValue={userData.jenis_kelamin || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Dosen Wali</label>
+                      <input type="text" defaultValue={userData.dosen_wali || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Tempat, Tanggal Lahir</label>
+                      <input type="text" defaultValue={userData.ttl || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Alamat Lengkap</label>
+                      <textarea defaultValue={userData.alamat || '-'} rows="3" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium resize-none select-none"></textarea>
                     </div>
 
                   </div>
 
-                  {/* Form Ganti Password */}
+                  {/* Form Ganti Password (Bisa Diubah dengan Style Lama #C9CCCB) */}
                   <div className="pt-8 mt-6 border-t border-gray-300">
                     <h4 className="text-[18px] font-bold text-[#182D4A] mb-5">Ubah Keamanan Akun</h4>
                     
@@ -152,7 +171,7 @@ export default function Settings() {
 
                     <div className="flex justify-end pt-6">
                       <button className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
-                        Simpan Perubahan
+                        Simpan Password Baru
                       </button>
                     </div>
                   </div>
@@ -168,7 +187,7 @@ export default function Settings() {
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
                   <div>
                     <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Aktivitas</h3>
-                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua notifikasi dan aktivitas terbaru di sistem administrasi.</p>
+                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua notifikasi dan aktivitas terbaru di sistem.</p>
                   </div>
                   <button 
                     onClick={markAllAsRead}

@@ -35,7 +35,7 @@ export default function NotificationDropdown() {
       {/* Tombol Lonceng (Bell) */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-11 h-11 flex items-center justify-center rounded-full bg-[#3470B9] text-white hover:bg-[#285a96] transition-colors shadow-sm focus:outline-none"
+        className="relative w-12 h-12 flex items-center justify-center rounded-full border-[1.5px] border-[#2A60A4] text-[#2A60A4] bg-[#F4F5F7] hover:bg-blue-50 transition-colors"
       >
         {/* Fill currentColor akan membuat ikonnya padat (solid) */}
         <Bell size={22} fill="currentColor" strokeWidth={1} />

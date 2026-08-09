@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ProfileDropdown from '../../components/ProfileDropdown';
+import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import dummyData from '../../data/dummy.json';
 import { Search, XCircle, Bell, Clock, CheckCircle2, Eye } from 'lucide-react';
@@ -29,10 +30,8 @@ export default function KelolaPengajuan() {
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
             <div className="flex items-center gap-4">
-              <button className="w-12 h-12 flex items-center justify-center rounded-full border-[1.5px] border-[#2A60A4] text-[#2A60A4] bg-[#F4F5F7] hover:bg-blue-50 transition-colors">
-                <Bell size={24} strokeWidth={1.5} />
-              </button>
-                < ProfileDropdown />
+              <NotificationDropdown />
+              <ProfileDropdown />
             </div>
             <span className="text-gray-700 font-medium text-[15px]">06 Agustus 2026</span>
           </div>

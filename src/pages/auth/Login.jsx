@@ -40,7 +40,7 @@ export default function Login() {
       navigate('/ad/dashboard'); 
     } else if (emailInput === userAccount.email && passwordInput === userAccount.password) {
       // Login sebagai Mahasiswa
-      navigate('/u/dashboard'); 
+      navigate('/mhs/dashboard'); 
     } else {
       // Kalau salah masukkan peringatan
       setErrorMsg('Email atau password tidak cocok!');

@@ -25,10 +25,10 @@ export default function Sidebar({ activeMenu, role = 'admin' }) {
 
   // 2. Array menu khusus MAHASISWA
   const mahasiswaMenus = [
-    { id: 'dashboard', label: 'Beranda', icon: <Home size={24} strokeWidth={1.5} />, href: '/user/dashboard' },
-    { id: 'ajukan', label: 'Pengajuan Surat', icon: <FilePlus size={24} strokeWidth={1.5} />, href: '/user/ajukan' },
-    { id: 'riwayat', label: 'Riwayat Pengajuan', icon: <History size={24} strokeWidth={1.5} />, href: '/user/riwayat' },
-    { id: 'setting', label: 'Profil Saya', icon: <Settings size={24} strokeWidth={1.5} />, href: '/user/setting' },
+    { id: 'dashboard', label: 'Beranda', icon: <Home size={24} strokeWidth={1.5} />, href: '/mhs/dashboard' },
+    { id: 'ajukan', label: 'Pengajuan Surat', icon: <FilePlus size={24} strokeWidth={1.5} />, href: '/mhs/ajukan' },
+    { id: 'riwayat', label: 'Riwayat Pengajuan', icon: <History size={24} strokeWidth={1.5} />, href: '/mhs/riwayat' },
+    { id: 'setting', label: 'Profil Saya', icon: <Settings size={24} strokeWidth={1.5} />, href: '/mhs/setting' },
   ];
 
   const menus = role === 'mahasiswa' ? mahasiswaMenus : adminMenus;
