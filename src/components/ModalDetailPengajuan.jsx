@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, FileText, Download, CheckCircle2 } from 'lucide-react';
+import ConfirmModal from './ConfirmModal';
 
 export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateStatus }) {
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+
   if (!isOpen || !data) return null;
 
   return (
@@ -58,7 +61,7 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
                 </div>
               </div>
               <button 
-                onClick={() => alert(`Mengunduh berkas_persyaratan_${data.nim}.pdf...`)}
+                onClick={() => setDownloadModalOpen(true)}
                 className="flex items-center gap-2 text-[13px] font-bold text-[#2A60A4] hover:bg-white px-3 py-1.5 rounded-md transition-colors border border-transparent hover:border-blue-200"
               >
                 <Download size={16} /> Unduh
@@ -67,6 +70,15 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
           </div>
 
         </div>
+
+        <ConfirmModal 
+          isOpen={downloadModalOpen}
+          onClose={() => setDownloadModalOpen(false)}
+          message={`Mengunduh berkas_persyaratan_${data.nim}.pdf...`}
+          type="download"
+          showCancel={false}
+          confirmText="Tutup"
+        />
 
         {/* Footer Modal: Tombol Aksi Cepat berdasarkan Status */}
         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center flex-shrink-0">

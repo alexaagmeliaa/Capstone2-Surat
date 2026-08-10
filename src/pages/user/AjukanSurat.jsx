@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
+import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json';
 import { UploadCloud, Send, AlertCircle, FileType, CheckCircle } from 'lucide-react';
 
@@ -15,6 +16,25 @@ export default function AjukanSurat() {
   const [jenisSurat, setJenisSurat] = useState('');
   const [keperluan, setKeperluan] = useState('');
   const [fileName, setFileName] = useState('');
+
+  // State untuk Popup Modal
+  const [popupModal, setPopupModal] = useState({
+    isOpen: false,
+    type: 'info',
+    message: '',
+    showCancel: false,
+    confirmText: 'OK'
+  });
+
+  const showNotification = (message, type = 'warning') => {
+    setPopupModal({
+      isOpen: true,
+      type,
+      message,
+      showCancel: false,
+      confirmText: 'OK'
+    });
+  };
 
   // State untuk interaksi Drag & Drop
   const [isDragging, setIsDragging] = useState(false);
@@ -50,7 +70,7 @@ export default function AjukanSurat() {
     
     // Validasi tambahan (meskipun sudah ada 'required' di HTML)
     if (!jenisSurat || !keperluan || !fileName) {
-      alert("Harap lengkapi semua form dan unggah berkas persyaratan!");
+      showNotification("Harap lengkapi semua form dan unggah berkas persyaratan!", "warning");
       return;
     }
 
@@ -58,7 +78,7 @@ export default function AjukanSurat() {
     console.log("Data dikirim ke Backend:", { jenisSurat, keperluan, fileName });
     
     // Notifikasi sukses
-    alert(`Pengajuan "${jenisSurat}" berhasil dikirim!\nSilakan pantau status surat di menu Riwayat.`);
+    showNotification(`Pengajuan "${jenisSurat}" berhasil dikirim!\nSilakan pantau status surat di menu Riwayat.`, "success");
 
     // Kosongkan form kembali setelah sukses
     setJenisSurat('');
@@ -246,6 +266,15 @@ export default function AjukanSurat() {
         </div>
 
       </main>
+
+      <ConfirmModal 
+        isOpen={popupModal.isOpen}
+        onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
+        message={popupModal.message}
+        type={popupModal.type}
+        showCancel={popupModal.showCancel}
+        confirmText={popupModal.confirmText}
+      />
 
       {/* Tambahan Animasi Muncul */}
       <style dangerouslySetInnerHTML={{__html: `

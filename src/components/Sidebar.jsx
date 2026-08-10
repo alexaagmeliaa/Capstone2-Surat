@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import ConfirmModal from './ConfirmModal';
 import { 
   Home, 
   FileSignature, 
@@ -13,6 +14,7 @@ import {
 
 export default function Sidebar({ activeMenu, role = 'admin' }) {
   const navigate = useNavigate(); // Inisialisasi fungsi navigasi
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // 1. Array menu khusus ADMIN
   const adminMenus = [
@@ -33,13 +35,8 @@ export default function Sidebar({ activeMenu, role = 'admin' }) {
 
   const menus = role === 'mahasiswa' ? mahasiswaMenus : adminMenus;
 
-  // Fungsi untuk menangani proses Logout
-  const handleLogout = () => {
-    // Nanti kalau sudah pakai API/Backend, kamu bisa hapus token di sini
-    // localStorage.removeItem('token');
-    // sessionStorage.clear();
-
-    // Arahkan kembali ke halaman Login (sesuaikan '/'-nya jika path login kamu berbeda)
+  // Eksekusi logout sesungguhnya
+  const confirmLogout = () => {
     navigate('/');
   };
 
@@ -77,13 +74,23 @@ export default function Sidebar({ activeMenu, role = 'admin' }) {
       {/* Footer / Logout */}
       <div className="p-8 mt-auto">
         <button 
-          onClick={handleLogout} 
+          onClick={() => setIsLogoutModalOpen(true)} 
           className="flex items-center gap-4 px-4 py-3 w-full text-putih/80 hover:text-putih hover:bg-white/10 rounded-xl transition-colors focus:outline-none"
         >
           <LogOut size={24} strokeWidth={1.5} />
           <span className="text-[18px] font-light tracking-wide">Logout</span>
         </button>
       </div>
+
+      <ConfirmModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={confirmLogout}
+        message="Apakah anda yakin ingin keluar dari sistem?"
+        confirmText="Ya, Keluar"
+        cancelText="Batal"
+        type="logout"
+      />
       
     </aside>
   );

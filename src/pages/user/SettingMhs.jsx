@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
+import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json'; 
 import { FileText, Info, Check, UploadCloud } from 'lucide-react';
 
@@ -25,6 +26,25 @@ export default function SettingMhs() {
     confirmPassword: ''
   });
 
+  // State untuk Popup Modal
+  const [popupModal, setPopupModal] = useState({
+    isOpen: false,
+    type: 'info',
+    message: '',
+    showCancel: false,
+    confirmText: 'OK'
+  });
+
+  const showNotification = (message, type = 'warning') => {
+    setPopupModal({
+      isOpen: true,
+      type,
+      message,
+      showCancel: false,
+      confirmText: 'OK'
+    });
+  };
+
   // State untuk Drag & Drop
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -42,7 +62,7 @@ export default function SettingMhs() {
       const imageUrl = URL.createObjectURL(file);
       setFormData(prev => ({ ...prev, img: imageUrl }));
     } else {
-      alert("Tolong upload file gambar (JPG/PNG) ya!");
+      showNotification("Tolong upload file gambar (JPG/PNG) ya!", "warning");
     }
   };
 
@@ -72,11 +92,11 @@ export default function SettingMhs() {
 
     if (isChangingPassword) {
       if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
-        alert("Harap lengkapi semua kolom password jika ingin mengubah password!");
+        showNotification("Harap lengkapi semua kolom password jika ingin mengubah password!", "warning");
         return;
       }
       if (formData.newPassword !== formData.confirmPassword) {
-        alert("Konfirmasi password baru tidak cocok!");
+        showNotification("Konfirmasi password baru tidak cocok!", "warning");
         return;
       }
     }
@@ -88,7 +108,7 @@ export default function SettingMhs() {
       successMessage += `- Password akun berhasil diubah.`;
     }
 
-    alert(successMessage);
+    showNotification(successMessage, "success");
 
     // Reset kolom password setelah berhasil
     setFormData(prev => ({
@@ -365,6 +385,15 @@ export default function SettingMhs() {
         </div>
 
       </main>
+
+      <ConfirmModal 
+        isOpen={popupModal.isOpen}
+        onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
+        message={popupModal.message}
+        type={popupModal.type}
+        showCancel={popupModal.showCancel}
+        confirmText={popupModal.confirmText}
+      />
 
       <style dangerouslySetInnerHTML={{__html: `
         .animate-fade-in {

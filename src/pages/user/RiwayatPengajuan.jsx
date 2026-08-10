@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
+import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json';
 import { Search, Download, Info } from 'lucide-react';
 
@@ -10,6 +11,12 @@ export default function RiwayatPengajuan() {
   // Ambil data riwayat dari JSON, fallback ke array kosong kalau belum ada
   const [riwayat, setRiwayat] = useState(dummyData.riwayatMahasiswa || []);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // State untuk Popup Download Modal
+  const [downloadModal, setDownloadModal] = useState({
+    isOpen: false,
+    message: ''
+  });
 
   // Fitur pencarian berdasarkan Jenis Surat ATAU ID Tiket
   const filteredRiwayat = riwayat.filter((item) => {
@@ -22,8 +29,10 @@ export default function RiwayatPengajuan() {
 
   // --- FUNGSI DOWNLOAD PDF ---
   const handleDownload = (id, jenisSurat) => {
-    // Simulasi proses download berkas
-    alert(`Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID Tiket: ${id})`);
+    setDownloadModal({
+      isOpen: true,
+      message: `Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID Tiket: ${id})`
+    });
   };
 
   return (
@@ -150,6 +159,16 @@ export default function RiwayatPengajuan() {
         </div>
 
       </main>
+
+      <ConfirmModal 
+        isOpen={downloadModal.isOpen}
+        onClose={() => setDownloadModal(prev => ({ ...prev, isOpen: false }))}
+        message={downloadModal.message}
+        type="download"
+        showCancel={false}
+        confirmText="Tutup"
+      />
+
     </div>
   );
 }

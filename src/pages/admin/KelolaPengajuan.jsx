@@ -3,6 +3,7 @@ import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import ModalDetailPengajuan from '../../components/ModalDetailPengajuan'; // <-- Import Modal Baru
+import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json';
 import { Search, XCircle, Clock, CheckCircle2, Eye, X } from 'lucide-react';
 
@@ -14,36 +15,63 @@ export default function KelolaPengajuan() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState(null);
 
+  // State untuk Popup Confirm & Notification Modal
+  const [popupModal, setPopupModal] = useState({
+    isOpen: false,
+    type: 'warning',
+    message: '',
+    onConfirm: null,
+    showCancel: true,
+    confirmText: 'Ya, Yakin'
+  });
+
   // 1. Fungsi Pencarian (Filter by Nama atau NIM)
   const filteredRequests = requests.filter((item) =>
     item.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     item.nim?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // 2. Fungsi Mengubah Status
-  const handleUpdateStatus = (id, newStatus) => {
-    const confirmAction = window.confirm(`Apakah Anda yakin ingin mengubah status pengajuan ini menjadi "${newStatus}"?`);
+  // Eksekusi perubahan status sesungguhnya
+  const executeUpdateStatus = (id, newStatus) => {
+    const updatedRequests = requests.map(req => 
+      req.id === id ? { ...req, status: newStatus } : req
+    );
     
-    if (confirmAction) {
-      const updatedRequests = requests.map(req => 
-        req.id === id ? { ...req, status: newStatus } : req
-      );
-      
-      // Update state tabel
-      setRequests(updatedRequests);
-      
-      // Jika modal sedang terbuka, update juga state di dalam modal agar tampilannya berubah seketika
-      if (selectedReq && selectedReq.id === id) {
-        setSelectedReq({ ...selectedReq, status: newStatus });
-      }
-
-      alert(`Status pengajuan berhasil diubah menjadi ${newStatus}.`);
-      
-      // Opsional: Langsung tutup modal kalau statusnya jadi selesai/ditolak
-      if (newStatus === 'Selesai' || newStatus === 'Ditolak') {
-        setIsModalOpen(false);
-      }
+    // Update state tabel
+    setRequests(updatedRequests);
+    
+    // Jika modal sedang terbuka, update juga state di dalam modal agar tampilannya berubah seketika
+    if (selectedReq && selectedReq.id === id) {
+      setSelectedReq({ ...selectedReq, status: newStatus });
     }
+
+    if (newStatus === 'Selesai' || newStatus === 'Ditolak') {
+      setIsModalOpen(false);
+    }
+
+    // Tampilkan pemberitahuan sukses
+    setPopupModal({
+      isOpen: true,
+      type: 'success',
+      message: `Status pengajuan berhasil diubah menjadi ${newStatus}.`,
+      onConfirm: null,
+      showCancel: false,
+      confirmText: 'OK'
+    });
+  };
+
+  // 2. Fungsi Mengubah Status (Membuka Modal Konfirmasi)
+  const handleUpdateStatus = (id, newStatus) => {
+    const modalType = newStatus === 'Ditolak' ? 'danger' : newStatus === 'Selesai' ? 'success' : 'warning';
+    
+    setPopupModal({
+      isOpen: true,
+      type: modalType,
+      message: `Apakah Anda yakin ingin mengubah status pengajuan ini menjadi "${newStatus}"?`,
+      showCancel: true,
+      confirmText: 'Ya, Yakin',
+      onConfirm: () => executeUpdateStatus(id, newStatus)
+    });
   };
 
   // 3. Fungsi Buka Modal Detail
@@ -196,6 +224,21 @@ export default function KelolaPengajuan() {
         onClose={() => setIsModalOpen(false)}
         data={selectedReq}
         onUpdateStatus={handleUpdateStatus} 
+      />
+
+      {/* Panggil Modal Konfirmasi / Notifikasi Status */}
+      <ConfirmModal 
+        isOpen={popupModal.isOpen}
+        onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={popupModal.onConfirm ? () => {
+          const action = popupModal.onConfirm;
+          setPopupModal(prev => ({ ...prev, isOpen: false }));
+          action();
+        } : null}
+        message={popupModal.message}
+        type={popupModal.type}
+        showCancel={popupModal.showCancel}
+        confirmText={popupModal.confirmText}
       />
 
     </div>

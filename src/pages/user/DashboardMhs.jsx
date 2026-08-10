@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
+import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json';
 import { FilePlus, Clock, FileText, CheckCircle2 } from 'lucide-react';
 
@@ -10,6 +11,12 @@ export default function DashboardMhs() {
   // Ambil data user mahasiswa dari JSON
   const userData = dummyData.user || {};
   const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
+
+  // State untuk Popup Modal
+  const [downloadModal, setDownloadModal] = useState({
+    isOpen: false,
+    message: ''
+  });
 
   // Data dummy history pengajuan khusus mahasiswa ini
   const myRequests = [
@@ -20,9 +27,10 @@ export default function DashboardMhs() {
 
   // --- FUNGSI DOWNLOAD PDF ---
   const handleDownload = (id, jenisSurat) => {
-    // Simulasi proses download berkas
-    // Nantinya ini bisa diganti dengan fetch/axios ke endpoint API backend untuk get file Blob
-    alert(`Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID: ${id})`);
+    setDownloadModal({
+      isOpen: true,
+      message: `Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID: ${id})`
+    });
   };
 
   return (
@@ -160,6 +168,16 @@ export default function DashboardMhs() {
         </div>
 
       </main>
+
+      <ConfirmModal 
+        isOpen={downloadModal.isOpen}
+        onClose={() => setDownloadModal(prev => ({ ...prev, isOpen: false }))}
+        message={downloadModal.message}
+        type="download"
+        showCancel={false}
+        confirmText="Tutup"
+      />
+
     </div>
   );
 }

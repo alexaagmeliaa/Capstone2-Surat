@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { User, Settings, LogOut, HelpCircle } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
+import ConfirmModal from './ConfirmModal';
 import dummyData from '../data/dummy.json';
 
 // Tambahkan parameter "role" (default-nya "admin")
 export default function ProfileDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
@@ -29,7 +31,7 @@ export default function ProfileDropdown({ role = 'admin' }) {
   }, []);
 
   // Fungsi Logout
-  const handleLogout = () => {
+  const confirmLogout = () => {
     navigate('/');
   };
 
@@ -97,7 +99,10 @@ export default function ProfileDropdown({ role = 'admin' }) {
           {/* Tombol Logout */}
           <div className="p-2 border-t border-gray-100 relative z-10 bg-white">
             <button 
-              onClick={handleLogout}
+              onClick={() => {
+                setIsOpen(false);
+                setIsLogoutModalOpen(true);
+              }}
               className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg transition-colors"
             >
               <LogOut size={18} />
@@ -107,6 +112,16 @@ export default function ProfileDropdown({ role = 'admin' }) {
 
         </div>
       )}
+
+      <ConfirmModal 
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={confirmLogout}
+        message="Apakah anda yakin ingin keluar dari sistem?"
+        confirmText="Ya, Keluar"
+        cancelText="Batal"
+        type="logout"
+      />
     </div>
   );
 }
