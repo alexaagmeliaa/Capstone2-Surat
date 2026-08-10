@@ -3,7 +3,8 @@ import { Bell, FileText, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import dummyData from '../data/dummy.json';
 
-export default function NotificationDropdown() {
+// Tambahkan parameter "role" dengan nilai bawaan "admin"
+export default function NotificationDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -29,15 +30,50 @@ export default function NotificationDropdown() {
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
   };
 
+  // Menentukan arah rute halaman Settings berdasarkan role
+  const settingPath = role === 'mahasiswa' ? '/user/setting' : '/ad/setting';
+
+  // Fungsi pembantu untuk merender teks pesan agar fleksibel
+  const renderMessageText = (notif) => {
+    // Jika format pesannya adalah pengajuan (khusus Admin)
+    if (notif.message.includes('mengajukan Surat')) {
+      const parts = notif.message.split('mengajukan Surat');
+      return (
+        <>
+          <span className={`font-semibold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
+            {parts[0]}
+          </span>
+          <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
+            mengajukan Surat{' '}
+          </span>
+          <span className={`font-bold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
+            {notif.time}.
+          </span>
+        </>
+      );
+    }
+
+    // Format default untuk notifikasi lainnya (Sistem / Mahasiswa)
+    return (
+      <>
+        <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
+          {notif.message}{' '}
+        </span>
+        <span className={`font-bold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
+          {notif.time}.
+        </span>
+      </>
+    );
+  };
+
   return (
     <div className="relative" ref={dropdownRef}>
       
       {/* Tombol Lonceng (Bell) */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-12 h-12 flex items-center justify-center rounded-full border-[1.5px] border-[#2A60A4] text-[#2A60A4] bg-[#F4F5F7] hover:bg-blue-50 transition-colors"
+        className="relative w-12 h-12 flex items-center justify-center rounded-full border-[1.5px] border-[#2A60A4] text-[#2A60A4] bg-[#F4F5F7] hover:bg-blue-50 transition-colors focus:outline-none"
       >
-        {/* Fill currentColor akan membuat ikonnya padat (solid) */}
         <Bell size={22} fill="currentColor" strokeWidth={1} />
         
         {/* Badge merah jika ada notifikasi belum dibaca */}
@@ -65,15 +101,15 @@ export default function NotificationDropdown() {
           </div>
 
           {/* Body / List Notifikasi */}
-          <div className="p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto bg-[#F4F5F7] relative z-10">
+          <div className="p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto bg-[#F4F5F7] relative z-10 custom-scrollbar">
             {notifications.length > 0 ? (
               notifications.map((notif) => (
                 <div 
                   key={notif.id} 
                   className={`p-4 rounded-[16px] border flex gap-4 items-center transition-colors ${
                     notif.isRead 
-                      ? 'bg-[#C9CCCB] border-gray-400' // State Read (Abu-abu seperti di desain)
-                      : 'bg-[#D6E4F0] border-[#3470B9]' // State Unread (Biru terang seperti di desain)
+                      ? 'bg-[#C9CCCB] border-gray-400' // Read
+                      : 'bg-[#D6E4F0] border-[#3470B9]' // Unread
                   }`}
                 >
                   {/* Icon */}
@@ -85,22 +121,7 @@ export default function NotificationDropdown() {
 
                   {/* Teks Pesan */}
                   <div className="flex-1 text-[13.5px] leading-snug">
-                    <span className={`font-semibold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
-                      {notif.message.split('mengajukan Surat')[0]} {/* Ambil nama & NIM */}
-                    </span>
-                    {notif.message.includes('mengajukan Surat') && (
-                      <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
-                        mengajukan Surat{' '}
-                      </span>
-                    )}
-                    {notif.type === 'sistem' && (
-                      <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
-                        {notif.message}{' '}
-                      </span>
-                    )}
-                    <span className={`font-bold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
-                      {notif.time}.
-                    </span>
+                    {renderMessageText(notif)}
                   </div>
                 </div>
               ))
@@ -113,9 +134,9 @@ export default function NotificationDropdown() {
 
           {/* Footer */}
           <div className="bg-[#EAECEF] py-3 text-center border-t border-gray-300 relative z-10">
-            {/* Tambahkan state di sini untuk memberi tahu halaman tujuan */}
+            {/* Tautan yang dinamis mengarah berdasarkan role */}
             <Link 
-                to="/ad/setting" 
+                to={settingPath} 
                 state={{ activeTab: 'notifikasi' }} 
                 className="text-[#3470B9] text-[14.5px] font-medium hover:underline"
             >
@@ -125,6 +146,23 @@ export default function NotificationDropdown() {
 
         </div>
       )}
+
+      {/* Tambahan style untuk mempercantik scrollbar */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #c1c1c1; 
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8; 
+        }
+      `}} />
     </div>
   );
 }

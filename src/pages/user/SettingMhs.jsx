@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import dummyData from '../../data/dummy.json'; 
-import { FileText, Info, Check } from 'lucide-react';
+import { FileText, Info, Check, UploadCloud } from 'lucide-react';
 
 export default function SettingMhs() {
   const location = useLocation();
@@ -17,10 +17,86 @@ export default function SettingMhs() {
   const userData = dummyData.user || {};
   const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
   
+  // --- STATE UTAMA (FOTO & PASSWORD) ---
+  const [formData, setFormData] = useState({
+    img: userData.img || "/assets/profile/default.png",
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // State untuk Drag & Drop
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  // Notifikasi
   const [notifications, setNotifications] = useState(dummyData.notifikasi || []);
 
   const markAllAsRead = () => {
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
+  };
+
+  // --- FUNGSI DRAG & DROP FOTO ---
+  const handleFile = (file) => {
+    if (file && file.type.startsWith('image/')) {
+      const imageUrl = URL.createObjectURL(file);
+      setFormData(prev => ({ ...prev, img: imageUrl }));
+    } else {
+      alert("Tolong upload file gambar (JPG/PNG) ya!");
+    }
+  };
+
+  const onDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const onDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const onDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  // --- FUNGSI SIMPAN UNIVERSAL ---
+  const handleSaveAll = (e) => {
+    e.preventDefault();
+
+    // Cek apakah user sedang mencoba mengganti password
+    const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
+
+    if (isChangingPassword) {
+      if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
+        alert("Harap lengkapi semua kolom password jika ingin mengubah password!");
+        return;
+      }
+      if (formData.newPassword !== formData.confirmPassword) {
+        alert("Konfirmasi password baru tidak cocok!");
+        return;
+      }
+    }
+
+    // Pesan sukses dinamis
+    let successMessage = "Perubahan berhasil disimpan!\n";
+    successMessage += `- Foto Profil diperbarui (jika ada perubahan).\n`;
+    if (isChangingPassword) {
+      successMessage += `- Password akun berhasil diubah.`;
+    }
+
+    alert(successMessage);
+
+    // Reset kolom password setelah berhasil
+    setFormData(prev => ({
+      ...prev,
+      oldPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    }));
   };
 
   return (
@@ -33,6 +109,9 @@ export default function SettingMhs() {
         <header className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Profil Saya</h2>
+          </div>
+          <div className="flex flex-col items-end gap-3 pt-2">
+            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
           </div>
         </header>
 
@@ -68,24 +147,53 @@ export default function SettingMhs() {
             
             {/* --- ISI TAB PROFIL --- */}
             {activeTab === 'profil' && (
-              <div className="flex flex-col lg:flex-row gap-12 animate-fade-in">
+              <form onSubmit={handleSaveAll} className="flex flex-col lg:flex-row gap-12 animate-fade-in">
                 
-                {/* KIRI: Foto & Identitas Singkat */}
+                {/* KIRI: Foto & Drag Drop */}
                 <div className="w-full lg:w-[30%] flex flex-col items-center pt-2">
-                  <div className="w-56 h-56 rounded-full overflow-hidden border-[4px] border-[#3470B9] shadow-sm bg-white mb-6">
+                  
+                  {/* Area Drag & Drop Foto */}
+                  <div 
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    onClick={() => fileInputRef.current.click()}
+                    className={`relative w-56 h-56 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
+                      isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#3470B9] bg-white'
+                    }`}
+                  >
                     <img 
-                      src={userData.img || "/assets/profile/default.png"} 
+                      src={formData.img} 
                       alt="Profile" 
-                      className="w-full h-full object-cover" 
+                      className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
                     />
+                    
+                    {/* Overlay saat di hover atau saat dragging */}
+                    <div className={`absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                      <UploadCloud color="white" size={32} className="mb-2" />
+                      <span className="text-white text-[13px] font-semibold text-center px-4">
+                        {isDragging ? 'Lepaskan Foto' : 'Klik atau Drag & Drop Foto Baru'}
+                      </span>
+                    </div>
                   </div>
+                  
+                  {/* Input File Tersembunyi */}
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={(e) => handleFile(e.target.files[0])} 
+                  />
+
                   <div className="text-center mb-6">
                     <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formattedName}</h3>
                     <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{userData.prodi || 'S1 - Teknik Informatika'}</p>
                   </div>
-                  {/* Tombol kembali ke warna Biru Solid */}
-                  <button className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
-                    Upload atau Drag&Drop
+                  
+                  {/* Tombol pemicu file upload manual (alternatif klik) */}
+                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
+                    Upload Foto Baru
                   </button>
                 </div>
 
@@ -93,7 +201,7 @@ export default function SettingMhs() {
                 <div className="w-full lg:w-[70%]">
                   <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pribadi</h4>
                   
-                  {/* Grid Form Terkunci dengan Style Lama */}
+                  {/* Grid Form Terkunci */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                     
                     <div>
@@ -148,36 +256,55 @@ export default function SettingMhs() {
 
                   </div>
 
-                  {/* Form Ganti Password (Bisa Diubah dengan Style Lama #C9CCCB) */}
-                  <div className="pt-8 mt-6 border-t border-gray-300">
+                  {/* Form Ganti Password */}
+                  <div className="pt-8 mt-8 border-t border-gray-300">
                     <h4 className="text-[18px] font-bold text-[#182D4A] mb-5">Ubah Keamanan Akun</h4>
                     
                     <div className="space-y-6">
                       <div>
                         <label className="block text-[15px] font-semibold text-gray-800 mb-2">Password Lama</label>
-                        <input type="password" placeholder="Masukkan password saat ini..." className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" />
+                        <input 
+                          type="password" 
+                          value={formData.oldPassword}
+                          onChange={(e) => setFormData({...formData, oldPassword: e.target.value})}
+                          placeholder="Masukkan password saat ini..." 
+                          className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                        />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="block text-[15px] font-semibold text-gray-800 mb-2">Password Baru</label>
-                          <input type="password" placeholder="Buat password baru..." className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" />
+                          <input 
+                            type="password" 
+                            value={formData.newPassword}
+                            onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
+                            placeholder="Buat password baru..." 
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                          />
                         </div>
                         <div>
                           <label className="block text-[15px] font-semibold text-gray-800 mb-2">Konfirmasi Password Baru</label>
-                          <input type="password" placeholder="Ulangi password baru..." className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" />
+                          <input 
+                            type="password" 
+                            value={formData.confirmPassword}
+                            onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
+                            placeholder="Ulangi password baru..." 
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                          />
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex justify-end pt-6">
-                      <button className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
-                        Simpan Password Baru
+                    {/* Tombol Simpan Perubahan Universal */}
+                    <div className="flex justify-end pt-8">
+                      <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
+                        Simpan Perubahan
                       </button>
                     </div>
                   </div>
 
                 </div>
-              </div>
+              </form>
             )}
 
             {/* --- ISI TAB NOTIFIKASI WEB --- */}

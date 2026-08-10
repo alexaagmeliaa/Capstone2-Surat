@@ -34,7 +34,7 @@ export default function ProfileDropdown({ role = 'admin' }) {
   };
 
   // Tentukan rute halaman setting berdasarkan role
-  const settingPath = role === 'mahasiswa' ? '/user/setting' : '/ad/setting';
+  const settingPath = role === 'mahasiswa' ? '/mhs/setting' : '/ad/setting';
 
   return (
     <div className="relative" ref={dropdownRef}>

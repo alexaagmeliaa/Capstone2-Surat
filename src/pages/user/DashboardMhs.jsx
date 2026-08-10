@@ -7,22 +7,23 @@ import dummyData from '../../data/dummy.json';
 import { FilePlus, Clock, FileText, CheckCircle2 } from 'lucide-react';
 
 export default function DashboardMhs() {
-  // 1. Konfigurasi Menu Sidebar khusus Mahasiswa
-  // Catatan: Pastikan di dalam komponen Sidebar kamu sudah ada penanganan untuk me-render icon ini jika dikirimkan sebagai object. 
-  // Jika Sidebar kamu didesain untuk membaca 'activeMenu' string (seperti versi Admin), gunakan properti tersebut.
-  // Untuk konsistensi dengan versi Admin kemarin, kita hanya mengirimkan parameter activeMenu.
-  
   // Ambil data user mahasiswa dari JSON
   const userData = dummyData.user || {};
   const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
 
-  // 2. Data dummy history pengajuan khusus mahasiswa ini
-  // Kita asumsikan ini adalah riwayat pribadi si mahasiswa
+  // Data dummy history pengajuan khusus mahasiswa ini
   const myRequests = [
     { id: 1, jenis: 'Surat Pengantar Penelitian', tanggal: '06 Agustus 2026', status: 'Diproses' },
     { id: 2, jenis: 'Surat Keterangan Mahasiswa', tanggal: '01 Agustus 2026', status: 'Selesai' },
     { id: 3, jenis: 'Surat Keterangan Lulus', tanggal: '28 Juli 2026', status: 'Pending' },
   ];
+
+  // --- FUNGSI DOWNLOAD PDF ---
+  const handleDownload = (id, jenisSurat) => {
+    // Simulasi proses download berkas
+    // Nantinya ini bisa diganti dengan fetch/axios ke endpoint API backend untuk get file Blob
+    alert(`Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID: ${id})`);
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
@@ -33,20 +34,17 @@ export default function DashboardMhs() {
       {/* --- KONTEN UTAMA KANAN --- */}
       <main className="flex-1 px-10 py-10 overflow-y-auto">
         
-        {/* Header Atas (Sesuai Desain Admin) */}
+        {/* Header Atas */}
         <header className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Dashboard</h2>
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
             <div className="flex items-center gap-4">
-              {/* Komponen Notifikasi */}
-              <NotificationDropdown />
-              
-              {/* Komponen Profil */}
+              <NotificationDropdown role="mahasiswa" />
               <ProfileDropdown role="mahasiswa" />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">08 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
           </div>
         </header>
 
@@ -132,7 +130,6 @@ export default function DashboardMhs() {
                     </td>
                     <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
                     <td className="px-6 py-4">
-                      {/* Logika Warna Badge Seragam dengan Admin */}
                       <span className={`px-5 py-1 text-[13px] font-medium rounded-full border ${
                         item.status === 'Pending' 
                           ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' 
@@ -145,7 +142,10 @@ export default function DashboardMhs() {
                     </td>
                     <td className="px-6 py-4 text-center">
                       {item.status === 'Selesai' ? (
-                        <button className="inline-block bg-[#2A60A4] text-white text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-[#1f4b82] transition-colors shadow-sm">
+                        <button 
+                          onClick={() => handleDownload(item.id, item.jenis)}
+                          className="inline-block bg-[#2A60A4] text-white text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-[#1f4b82] transition-colors shadow-sm"
+                        >
                           Download PDF
                         </button>
                       ) : (

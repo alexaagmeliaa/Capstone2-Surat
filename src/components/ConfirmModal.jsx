@@ -8,7 +8,7 @@ export default function ConfirmModal({
   message = "Apakah anda yakin ingin menghapus file ini?",
   confirmText = "Ya, Yakin",
   cancelText = "Tidak, Batalkan",
-  type = "danger" // Bisa diisi: 'danger', 'warning', atau 'info'
+  type = "danger"
 }) {
   if (!isOpen) return null;
 

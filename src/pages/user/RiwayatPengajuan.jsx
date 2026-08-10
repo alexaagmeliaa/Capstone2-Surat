@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
@@ -10,10 +11,20 @@ export default function RiwayatPengajuan() {
   const [riwayat, setRiwayat] = useState(dummyData.riwayatMahasiswa || []);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fitur pencarian berdasarkan Jenis Surat
-  const filteredRiwayat = riwayat.filter((item) =>
-    item.jenis.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fitur pencarian berdasarkan Jenis Surat ATAU ID Tiket
+  const filteredRiwayat = riwayat.filter((item) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      item.jenis?.toLowerCase().includes(searchLower) ||
+      item.id?.toString().toLowerCase().includes(searchLower)
+    );
+  });
+
+  // --- FUNGSI DOWNLOAD PDF ---
+  const handleDownload = (id, jenisSurat) => {
+    // Simulasi proses download berkas
+    alert(`Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID Tiket: ${id})`);
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
@@ -32,20 +43,20 @@ export default function RiwayatPengajuan() {
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
             <div className="flex items-center gap-4">
-              <NotificationDropdown />
-              <ProfileDropdown role='mahasiswa' />
+              <NotificationDropdown role="mahasiswa" />
+              <ProfileDropdown role="mahasiswa" />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">09 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
           </div>
         </header>
 
         {/* Toolbar: Search Bar */}
         <div className="mb-6 flex justify-between items-center">
-          <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[400px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm">
+          <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[400px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
             <Search size={20} className="text-gray-400" />
             <input 
               type="text" 
-              placeholder="Cari jenis surat..." 
+              placeholder="Cari ID Tiket atau Jenis Surat..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
@@ -95,7 +106,7 @@ export default function RiwayatPengajuan() {
                           <div className="flex items-start gap-1.5 mt-1 text-gray-500">
                             <Info size={14} className="mt-0.5 flex-shrink-0" />
                             <span className="text-[12px] leading-tight max-w-[200px]">
-                              {item.keterangan}
+                              {item.keterangan || 'Tidak ada keterangan tambahan.'}
                             </span>
                           </div>
                         </div>
@@ -103,14 +114,20 @@ export default function RiwayatPengajuan() {
                       <td className="px-6 py-5">
                         <div className="flex justify-center">
                           {item.status === 'Selesai' ? (
-                            <button className="flex items-center gap-2 bg-[#2A60A4] text-white px-5 py-2.5 rounded-[8px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[13px]">
+                            <button 
+                              onClick={() => handleDownload(item.id, item.jenis)}
+                              className="flex items-center gap-2 bg-[#2A60A4] text-white px-5 py-2.5 rounded-[8px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-300"
+                            >
                               <Download size={16} strokeWidth={2.5} />
                               Unduh PDF
                             </button>
                           ) : item.status === 'Ditolak' ? (
-                            <span className="text-[13px] font-bold text-red-500">
+                            <Link 
+                              to="/mhs/ajukan" 
+                              className="text-[13px] font-bold text-red-500 hover:text-red-700 hover:underline transition-colors"
+                            >
                               Harap ajukan ulang
-                            </span>
+                            </Link>
                           ) : (
                             <span className="text-[13px] font-medium text-gray-400 italic">
                               Belum Tersedia
@@ -123,7 +140,7 @@ export default function RiwayatPengajuan() {
                 ) : (
                   <tr>
                     <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
-                      Tidak ada riwayat pengajuan surat yang ditemukan.
+                      Tidak ada riwayat pengajuan surat yang cocok dengan pencarian "{searchTerm}".
                     </td>
                   </tr>
                 )}
