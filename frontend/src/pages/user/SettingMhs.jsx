@@ -5,7 +5,7 @@ import ConfirmModal from '../../components/ConfirmModal';
 import dummyData from '../../data/dummy.json'; 
 import { FileText, Info, Check, UploadCloud } from 'lucide-react';
 
-export default function Settings() {
+export default function SettingMhs() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
 
@@ -15,15 +15,12 @@ export default function Settings() {
     }
   }, [location.state]);
 
-  // Ambil data khusus Admin dari dummy.json
-  const adminData = dummyData.admin || {};
-  const formattedName = adminData.username ? adminData.username.charAt(0).toUpperCase() + adminData.username.slice(1) : 'Admin';
+  const userData = dummyData.user || {};
+  const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
   
-  // --- STATE UTAMA (PROFIL & PASSWORD JADI SATU) ---
+  // --- STATE UTAMA (FOTO & PASSWORD) ---
   const [formData, setFormData] = useState({
-    nama: formattedName,
-    no_telp: adminData.no_telp || '0812-3456-7890',
-    img: adminData.img || "/assets/profile/default.png",
+    img: userData.img || "/assets/profile/default.png",
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -86,11 +83,11 @@ export default function Settings() {
     }
   };
 
-  // --- FUNGSI SIMPAN UNIVERSAL (SEKALI KLIK UNTUK SEMUA) ---
+  // --- FUNGSI SIMPAN UNIVERSAL ---
   const handleSaveAll = (e) => {
     e.preventDefault();
 
-    // Cek jika user berniat mengganti password (artinya mengisi salah satu kolom password)
+    // Cek apakah user sedang mencoba mengganti password
     const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
 
     if (isChangingPassword) {
@@ -104,16 +101,16 @@ export default function Settings() {
       }
     }
 
-    // Simulasi penyimpanan berhasil secara menyeluruh
+    // Pesan sukses dinamis
     let successMessage = "Perubahan berhasil disimpan!\n";
-    successMessage += `- Informasi Pegawai (Nama & No. Telp) diperbarui.\n`;
+    successMessage += `- Foto Profil diperbarui (jika ada perubahan).\n`;
     if (isChangingPassword) {
       successMessage += `- Password akun berhasil diubah.`;
     }
 
     showNotification(successMessage, "success");
 
-    // Kosongkan field password setelah berhasil disimpan
+    // Reset kolom password setelah berhasil
     setFormData(prev => ({
       ...prev,
       oldPassword: '',
@@ -125,16 +122,16 @@ export default function Settings() {
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
       
-      <Sidebar activeMenu="setting" />
+      <Sidebar activeMenu="setting" role="mahasiswa" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto">
         
         <header className="flex justify-between items-start mb-8">
           <div>
-            <h2 className="text-[44px] font-semibold text-[#2A60A4]">Settings</h2>
+            <h2 className="text-[44px] font-semibold text-[#2A60A4]">Profil Saya</h2>
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
-            <span className="text-gray-700 font-medium text-[15px]">09 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
           </div>
         </header>
 
@@ -168,7 +165,7 @@ export default function Settings() {
           {/* Kotak Utama Konten */}
           <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] rounded-tr-[12px] p-8 md:p-10 shadow-sm relative min-h-[500px]">
             
-            {/* --- ISI TAB PROFIL ADMIN --- */}
+            {/* --- ISI TAB PROFIL --- */}
             {activeTab === 'profil' && (
               <form onSubmit={handleSaveAll} className="flex flex-col lg:flex-row gap-12 animate-fade-in">
                 
@@ -187,7 +184,7 @@ export default function Settings() {
                   >
                     <img 
                       src={formData.img} 
-                      alt="Profile Admin" 
+                      alt="Profile" 
                       className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
                     />
                     
@@ -210,62 +207,71 @@ export default function Settings() {
                   />
 
                   <div className="text-center mb-6">
-                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formData.nama}</h3>
-                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{adminData.jabatan || 'Administrator'}</p>
+                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formattedName}</h3>
+                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{userData.prodi || 'S1 - Teknik Informatika'}</p>
                   </div>
+                  
+                  {/* Tombol pemicu file upload manual (alternatif klik) */}
+                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
+                    Upload Foto Baru
+                  </button>
                 </div>
 
-                {/* KANAN: Form Informasi Pegawai & Keamanan */}
+                {/* KANAN: Form Informasi Pribadi */}
                 <div className="w-full lg:w-[70%]">
-                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pegawai</h4>
+                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pribadi</h4>
                   
-                  {/* Grid Informasi Pegawai */}
+                  {/* Grid Form Terkunci */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                     
-                    {/* BISA DI EDIT */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nama Lengkap</label>
-                      <input 
-                        type="text" 
-                        value={formData.nama} 
-                        onChange={(e) => setFormData({...formData, nama: e.target.value})}
-                        className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all font-medium" 
-                      />
+                      <input type="text" defaultValue={formattedName} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
-                    {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">ID Pegawai / NIP</label>
-                      <input type="text" defaultValue={adminData.id_pegawai || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Induk Mahasiswa (NIM)</label>
+                      <input type="text" defaultValue={userData.nim || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
                     
-                    {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Operasional</label>
-                      <input type="email" defaultValue={adminData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Kampus</label>
+                      <input type="email" defaultValue={userData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
-                    {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Pekerja</label>
-                      <input type="text" defaultValue={adminData.status || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Mahasiswa</label>
+                      <input type="text" defaultValue={userData.status_aktif || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
                     </div>
 
-                    {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jabatan</label>
-                      <input type="text" defaultValue={adminData.jabatan || 'Admin'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Angkatan</label>
+                      <input type="text" defaultValue={userData.angkatan || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
-                    {/* BISA DI EDIT */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Telepon</label>
-                      <input 
-                        type="text" 
-                        value={formData.no_telp} 
-                        onChange={(e) => setFormData({...formData, no_telp: e.target.value})}
-                        className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all font-medium" 
-                      />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Mahasiswa</label>
+                      <input type="text" defaultValue={userData.jenis_mhs || 'Regular'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Kelamin</label>
+                      <input type="text" defaultValue={userData.jenis_kelamin || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Dosen Wali</label>
+                      <input type="text" defaultValue={userData.dosen_wali || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div>
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Tempat, Tanggal Lahir</label>
+                      <input type="text" defaultValue={userData.ttl || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Alamat Lengkap</label>
+                      <textarea defaultValue={userData.alamat || '-'} rows="3" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium resize-none select-none"></textarea>
                     </div>
 
                   </div>
@@ -309,7 +315,7 @@ export default function Settings() {
                       </div>
                     </div>
 
-                    {/* Tombol Simpan Perubahan Utama di Paling Bawah */}
+                    {/* Tombol Simpan Perubahan Universal */}
                     <div className="flex justify-end pt-8">
                       <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
                         Simpan Perubahan
@@ -328,7 +334,7 @@ export default function Settings() {
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
                   <div>
                     <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Aktivitas</h3>
-                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua notifikasi dan aktivitas terbaru di sistem administrasi.</p>
+                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua notifikasi dan aktivitas terbaru di sistem.</p>
                   </div>
                   <button 
                     onClick={markAllAsRead}

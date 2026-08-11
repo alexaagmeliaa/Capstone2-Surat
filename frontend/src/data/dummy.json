@@ -4,7 +4,11 @@
       "img": "/assets/profile/admin.webp",
       "role": "admin",
       "email": "admin@example.com",
-      "password": "admin123"
+      "password": "admin123",
+      "id_pegawai": "ADM-2023-001",
+      "jabatan": "Staf Administrasi Akademik",
+      "no_telp": "0812-3456-7890",
+      "status": "Aktif Bekerja"
   },
 
   "user": {
@@ -12,7 +16,16 @@
       "img": "/assets/profile/user.webp",
       "role": "user",
       "email": "user@example.com",
-      "password": "user123"
+      "password": "user123",
+      "nim": "10119099",
+      "prodi": "S1 - Teknik Informatika",
+      "status_aktif": "Aktif",
+      "angkatan": "2019",
+      "jenis_mhs": "Regular",
+      "jenis_kelamin": "Laki-Laki",
+      "dosen_wali": "Dr. Ir. Budi Santoso, M.Kom",
+      "ttl": "Bandung, 15 Agustus 2001",
+      "alamat": "Jl. Cibaduyut Raya No. 123, Bandung, Jawa Barat"
   },
 
   "statistik": {
@@ -81,6 +94,7 @@
       "nim": "10119099",
       "nama": "Muhammad Fauzi Setiawan",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -89,6 +103,7 @@
       "nim": "10119088",
       "nama": "Jacky Firmansah",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -97,6 +112,7 @@
       "nim": "10119077",
       "nama": "Mochammad Aldi",
       "prodi": "Sistem Informasi",
+      "jenis_mhs": "Regular",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -105,6 +121,7 @@
       "nim": "10119066",
       "nama": "Muhammad Fathulhaq Alfiqi",
       "prodi": "Teknik Informatika",
+      "jenis_mhs": "Karyawan",
       "angkatan": "2023",
       "status": "Aktif"
     },
@@ -113,6 +130,7 @@
       "nim": "10119055",
       "nama": "Arya Kusuma Dinata",
       "prodi": "Sistem Informasi",
+      "jenis_mhs": "Karyawan",
       "angkatan": "2023",
       "status": "Cuti"
     }
@@ -142,6 +160,37 @@
       "message": "Maintenance server e-surat akan dilakukan pada 10 Agustus 2026 pukul 00:00 WIB.",
       "time": "1 hari yang lalu",
       "isRead": true
+    }
+  ],
+
+  "riwayatMahasiswa": [
+    {
+      "id": "REQ-001",
+      "jenis": "Surat Pengantar Penelitian",
+      "tanggal": "06 Agustus 2026",
+      "status": "Diproses",
+      "keterangan": "Sedang menunggu tanda tangan Kaprodi"
+    },
+    {
+      "id": "REQ-002",
+      "jenis": "Surat Keterangan Mahasiswa Aktif",
+      "tanggal": "01 Agustus 2026",
+      "status": "Selesai",
+      "keterangan": "Surat telah diterbitkan"
+    },
+    {
+      "id": "REQ-003",
+      "jenis": "Surat Keterangan Lulus",
+      "tanggal": "28 Juli 2026",
+      "status": "Ditolak",
+      "keterangan": "Berkas KTM yang dilampirkan buram/tidak terbaca"
+    },
+    {
+      "id": "REQ-004",
+      "jenis": "Surat Pengantar Magang / PKL",
+      "tanggal": "25 Juli 2026",
+      "status": "Pending",
+      "keterangan": "Menunggu verifikasi berkas oleh Admin"
     }
   ]
 }
