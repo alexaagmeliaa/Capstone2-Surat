@@ -171,7 +171,7 @@ export default function AjukanSurat() {
             <div>
               <h4 className="text-[#182D4A] font-bold text-[15px]">Informasi Penting</h4>
               <p className="text-[#2A60A4] text-[14px] mt-1">
-                Pastikan data diri dan lampiran berkas sudah sesuai dengan persyaratan jenis surat yang dipilih. Format berkas yang didukung: <b>PDF, JPG, PNG</b> (Maks 2MB).
+                Lampiran berkas bersifat <b>opsional</b>. Unggah dokumen pendukung jika jenis surat yang diajukan membutuhkan berkas persyaratan. Format yang didukung: <b>PDF, JPG, PNG</b> (Maks 2MB).
               </p>
             </div>
           </div>
@@ -244,7 +244,9 @@ export default function AjukanSurat() {
             </div>
 
             <div>
-              <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Lampiran Berkas</h3>
+              <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">
+                Lampiran Berkas <span className="text-sm font-normal text-gray-500">(Opsional)</span>
+              </h3>
               
               <div 
                 onDragOver={onDragOver}
@@ -259,7 +261,6 @@ export default function AjukanSurat() {
                 <input 
                   type="file" 
                   ref={fileInputRef}
-                  required={!fileName}
                   onChange={handleFileChange}
                   accept=".pdf, .jpg, .jpeg, .png"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 

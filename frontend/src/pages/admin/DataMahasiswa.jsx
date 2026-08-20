@@ -4,7 +4,7 @@ import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import ModalMahasiswa from '../../components/ModalMahasiswa';
 import ConfirmModal from '../../components/ConfirmModal';
-import { Search, Bell, Plus, FileUp, Edit, Trash2, X } from 'lucide-react';
+import { Search, Bell, Plus, FileUp, Edit, Trash2, X, Filter } from 'lucide-react';
 
 export default function DataMahasiswa() {
   const [mahasiswa, setMahasiswa] = useState([]);
@@ -29,6 +29,9 @@ export default function DataMahasiswa() {
   // State Kontrol Modal Hapus
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+
+  const [selectedProdi, setSelectedProdi] = useState('Semua');
+  const [sortBy, setSortBy] = useState('nim_asc');
 
   // --- 1. TARIK DATA MAHASISWA DARI DATABASE SAAT HALAMAN DIBUKA ---
   useEffect(() => {
@@ -56,11 +59,42 @@ export default function DataMahasiswa() {
     }
   };
 
-  // 2. Fungsi Pencarian (Filter NIM atau Nama)
-  const filteredMhs = mahasiswa.filter((item) =>
-    (item.nim || item.email || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-    (item.nama || item.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // 2. Fungsi Pencarian & Filter (Filter NIM, Nama, dan Program Studi + Sorting)
+  const filteredMhs = (mahasiswa || [])
+    .filter((item) => {
+      const nimStr = String(item.nim || item.email || '');
+      const namaStr = String(item.nama || item.name || '');
+      const matchesSearch = 
+        nimStr.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        namaStr.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const itemProdi = String(item.prodi || '').toLowerCase();
+      const matchesProdi = 
+        selectedProdi === 'Semua' || 
+        (selectedProdi === 'Teknik Informatika' && (itemProdi.includes('teknik') || itemProdi.includes('ti') || itemProdi.includes('if'))) ||
+        (selectedProdi === 'Sistem Informasi' && (itemProdi.includes('sistem') || itemProdi.includes('si')));
+
+      return matchesSearch && matchesProdi;
+    })
+    .sort((a, b) => {
+      const nimA = String(a.nim || '');
+      const nimB = String(b.nim || '');
+      const namaA = String(a.nama || a.name || '');
+      const namaB = String(b.nama || b.name || '');
+      const prodiA = String(a.prodi || '');
+      const prodiB = String(b.prodi || '');
+
+      if (sortBy === 'nim_asc') {
+        return nimA.localeCompare(nimB, undefined, { numeric: true });
+      } else if (sortBy === 'nim_desc') {
+        return nimB.localeCompare(nimA, undefined, { numeric: true });
+      } else if (sortBy === 'nama') {
+        return namaA.localeCompare(namaB);
+      } else if (sortBy === 'prodi') {
+        return prodiA.localeCompare(prodiB);
+      }
+      return 0;
+    });
 
   // 3. Fungsi Modal Tambah
   const openAddModal = () => {
@@ -89,7 +123,6 @@ export default function DataMahasiswa() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Accept': 'application/json'
           },
-          // PASTIKAN SEMUA DATA INI ADA SAAT TAMBAH DATA
           body: JSON.stringify({
             name: formData.nama || formData.name,
             email: generatedEmail,
@@ -150,7 +183,6 @@ export default function DataMahasiswa() {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
             'Accept': 'application/json'
           },
-          // PASTIKAN SEMUA DATA INI ADA SAAT EDIT DATA
           body: JSON.stringify({
             name: formData.nama || formData.name,
             email: formData.email,
@@ -257,38 +289,73 @@ export default function DataMahasiswa() {
           </div>
         </header>
 
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
           
-          <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[380px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
-            <Search size={20} className="text-gray-400" />
-            <input 
-              type="text" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari NIM atau Nama Mahasiswa..." 
-              className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600">
-                <X size={16} />
-              </button>
-            )}
+          {/* Group Filter & Search */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            
+            {/* Search Input */}
+            <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full sm:w-[300px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
+              <Search size={20} className="text-gray-400" />
+              <input 
+                type="text" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari NIM atau Nama..." 
+                className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Program Studi */}
+            <div className="relative w-full sm:w-[220px]">
+              <select
+                value={selectedProdi}
+                onChange={(e) => setSelectedProdi(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-[12px] pl-4 pr-10 py-3 text-[14px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#2A60A4] shadow-sm appearance-none cursor-pointer"
+              >
+                <option value="Semua">Semua Program Studi</option>
+                <option value="Teknik Informatika">Teknik Informatika (IF)</option>
+                <option value="Sistem Informasi">Sistem Informasi (SI)</option>
+              </select>
+              <div className="absolute right-3.5 top-3.5 pointer-events-none text-gray-500">
+                <Filter size={18} />
+              </div>
+            </div>
+
+            {/* Dropdown Urutkan */}
+            <div className="relative w-full sm:w-[190px]">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-[12px] px-4 py-3 text-[14px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#2A60A4] shadow-sm cursor-pointer"
+              >
+                <option value="nim_asc">NIM (Terendah)</option>
+                <option value="nim_desc">NIM (Tertinggi)</option>
+                <option value="nama">Nama (A - Z)</option>
+                <option value="prodi">Program Studi</option>
+              </select>
+            </div>
+
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <button className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto">
               <FileUp size={18} strokeWidth={2.5} />
               Import Data
             </button>
             <button 
               onClick={openAddModal}
-              className="flex items-center justify-center gap-2 bg-[#2A60A4] text-white px-5 py-3 rounded-[12px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[14px] w-full md:w-auto"
+              className="flex items-center justify-center gap-2 bg-[#2A60A4] text-white px-5 py-3 rounded-[12px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto"
             >
               <Plus size={18} strokeWidth={2.5} />
               Tambah Mahasiswa
             </button>
           </div>
-
         </div>
 
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">

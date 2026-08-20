@@ -27,10 +27,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Rute Logout
     Route::post('/logout', [AuthController::class, 'logout']);
 
-    // Cek user yang sedang login
+    // Cek user yang sedang login & update profil
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
 
     // --- Rute Pengajuan Surat ---
     // Mahasiswa

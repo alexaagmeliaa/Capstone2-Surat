@@ -81,6 +81,36 @@ class AuthController extends Controller
         ], 200);
     }
 
+    // Fungsi untuk memperbarui profil & password user yang sedang login (Admin & Mahasiswa)
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if ($request->filled('name')) {
+            $user->name = $request->name;
+        }
+
+        if ($request->filled('new_password')) {
+            if ($request->old_password && !Hash::check($request->old_password, $user->password)) {
+                return response()->json([
+                    'status' => 'gagal',
+                    'message' => 'Password lama yang Anda masukkan tidak sesuai!'
+                ], 400);
+            }
+
+            $user->password = Hash::make($request->new_password);
+            $user->plain_password = $request->new_password;
+        }
+
+        $user->save();
+
+        return response()->json([
+            'status' => 'sukses',
+            'message' => 'Profil dan akun berhasil diperbarui!',
+            'data' => $user
+        ], 200);
+    }
+
     // Fungsi untuk mengirim daftar mahasiswa ke frontend
     public function indexMahasiswa()
     {

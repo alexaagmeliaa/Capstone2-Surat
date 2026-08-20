@@ -72,7 +72,7 @@ export default function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent backdrop-blur-sm transition-opacity p-4">
       
       {/* Box Modal */}
       <div className="bg-[#F6F6F6] border border-gray-300 w-full max-w-[500px] rounded-[12px] shadow-2xl p-8 animate-fade-in-up text-center relative z-10">

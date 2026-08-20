@@ -2,44 +2,85 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Settings, LogOut } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
+import { getUserAvatar } from '../utils/avatar';
 
 export default function ProfileDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
-  const [user, setUser] = useState({});
-  const [profileImg, setProfileImg] = useState(null);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  // 1. BACA STATE SECARA SINKRON: Agar tidak ada delay/flicker saat pindah halaman
+  const [user, setUser] = useState(() => {
+    const cached = localStorage.getItem('cached_user_data');
+    return cached ? JSON.parse(cached) : {};
+  });
+
+  const [uid, setUid] = useState(() => {
+    const cached = localStorage.getItem('cached_user_data');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return parsed.id || parsed.email || (role === 'admin' ? 'admin_user' : 'guest');
+    }
+    return role === 'admin' ? 'admin_user' : 'guest';
+  });
+
+  const [profileImg, setProfileImg] = useState(() => {
+    // Cari UID terlebih dahulu secara langsung
+    let initialUid = role === 'admin' ? 'admin_user' : 'guest';
+    const cached = localStorage.getItem('cached_user_data');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      initialUid = parsed.id || parsed.email || initialUid;
+    }
+    // Langsung tembak foto dari local storage tanpa nunggu API
+    const saved = localStorage.getItem(`profile_img_${initialUid}`);
+    return (saved && saved !== "null" && saved !== "undefined") ? saved : null;
+  });
+
+  // 2. FETCH API SILENT UPDATE: Tetap ambil data terbaru di background tanpa mengganggu UI
   const loadUserData = async () => {
     try {
       const token = localStorage.getItem('token');
+      if (!token) return;
+
       const response = await fetch('http://localhost:8000/api/user', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Accept': 'application/json'
         }
       });
+      
+      let currentUid = role === 'admin' ? 'admin_user' : 'guest';
+      
       if (response.ok) {
         const data = await response.json();
         setUser(data);
+        currentUid = data.id || data.email || currentUid;
+        setUid(currentUid);
+        
+        // Simpan cache agar load berikutnya instan!
+        localStorage.setItem('cached_user_data', JSON.stringify(data));
+      }
+
+      const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
+      if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
+        setProfileImg(savedImg);
       }
     } catch (error) {
       console.error("Gagal memuat profil dropdown:", error);
-    }
-
-    const savedImg = localStorage.getItem('profile_img');
-    if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
-      setProfileImg(savedImg);
     }
   };
 
   useEffect(() => {
     loadUserData();
+  }, [role]);
 
+  // 3. TANGKAP EVENT TANPA API: Kalau foto diganti, langsung render instan!
+  useEffect(() => {
     const handleImageUpdate = () => {
-      const savedImg = localStorage.getItem('profile_img');
-      if (savedImg) {
+      const savedImg = localStorage.getItem(`profile_img_${uid}`);
+      if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
         setProfileImg(savedImg);
       }
     };
@@ -48,11 +89,14 @@ export default function ProfileDropdown({ role = 'admin' }) {
     return () => {
       window.removeEventListener('profileImageUpdated', handleImageUpdate);
     };
-  }, []);
+  }, [uid]);
 
   const formattedName = user?.name 
     ? user.name.charAt(0).toUpperCase() + user.name.slice(1) 
-    : 'Pengguna';
+    : (role === 'admin' ? 'Administrator' : 'Mahasiswa');
+
+  // Pakai foto profil yang disimpan, ATAU inisial dinamis
+  const avatarSrc = profileImg || getUserAvatar(user);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -67,19 +111,11 @@ export default function ProfileDropdown({ role = 'admin' }) {
   const confirmLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
-    localStorage.removeItem('profile_img');
+    localStorage.removeItem('cached_user_data'); // Hapus cache saat logout
     navigate('/login');
   };
 
   const settingPath = role === 'mahasiswa' ? '/mhs/setting' : '/ad/setting';
-
-  // Helper komponen untuk menampilkan siluet abu-abu yang rapi
-  const renderDefaultAvatar = () => (
-    <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-[#D1D5DB] relative overflow-hidden">
-      <div className="w-5 h-5 rounded-full bg-[#8A939B] mb-0.5"></div>
-      <div className="w-8 h-4 rounded-t-full bg-[#8A939B]"></div>
-    </div>
-  );
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -87,19 +123,14 @@ export default function ProfileDropdown({ role = 'admin' }) {
       {/* Tombol Profile / Trigger Dropdown */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center border-2 border-[#3470B9] hover:border-[#285a96] transition-colors focus:outline-none rounded-full outline-none shadow-sm overflow-hidden"
+        className="flex items-center border-2 border-[#3470B9] hover:border-[#285a96] transition-all focus:outline-none rounded-full outline-none shadow-sm overflow-hidden"
       >
-        <div className="w-12 h-12 rounded-full overflow-hidden flex justify-center items-center bg-[#D1D5DB]">
-          {profileImg ? (
-            <img 
-              src={profileImg} 
-              alt="Avatar" 
-              className="w-full h-full object-cover"
-              onError={() => setProfileImg(null)} // Jika gambar gagal dimuat, otomatis kembali ke siluet
-            />
-          ) : (
-            renderDefaultAvatar()
-          )}
+        <div className="w-11 h-11 rounded-full overflow-hidden flex justify-center items-center bg-[#D1D5DB]">
+          <img 
+            src={avatarSrc} 
+            alt={formattedName} 
+            className="w-full h-full object-cover"
+          />
         </div>
       </button>
 
@@ -112,24 +143,19 @@ export default function ProfileDropdown({ role = 'admin' }) {
           {/* Header Profil Singkat */}
           <div className="p-4 bg-gray-50 border-b border-gray-200 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-[#3470B9] overflow-hidden bg-[#D1D5DB] flex-shrink-0 flex flex-col justify-center items-center">
-                {profileImg ? (
-                  <img 
-                    src={profileImg} 
-                    alt="Avatar" 
-                    className="w-full h-full object-cover"
-                    onError={() => setProfileImg(null)}
-                  />
-                ) : (
-                  renderDefaultAvatar()
-                )}
+              <div className="w-12 h-12 rounded-full border-2 border-[#3470B9] overflow-hidden bg-[#D1D5DB] flex-shrink-0 flex justify-center items-center">
+                <img 
+                  src={avatarSrc} 
+                  alt={formattedName} 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <div className="overflow-hidden">
                 <div className="text-[15px] font-bold text-[#182D4A] truncate">
                   {formattedName}
                 </div>
                 <div className="text-[13px] font-medium text-gray-500 truncate">
-                  {user?.email || '-'}
+                  {user?.email || (role === 'admin' ? 'admin@stmik.ac.id' : '-')}
                 </div>
               </div>
             </div>

@@ -15,11 +15,14 @@ class PengajuanSurat extends Model
     protected $fillable = [
         'user_id',
         'jenis_surat',
+        'judul_surat',
         'keperluan',
-        'lampiran',         // <--- Tambahkan ini agar data file bisa disimpan
+        'lampiran',
         'status',
         'file_surat',
         'keterangan_admin',
+        'tanggal_pengajuan',
+        'alasan_penolakan',
     ];
 
     // Relasi: Satu pengajuan surat ini milik satu user (mahasiswa)

@@ -2,12 +2,19 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ConfirmModal from '../../components/ConfirmModal';
-import dummyData from '../../data/dummy.json'; 
-import { FileText, Info, Check, UploadCloud } from 'lucide-react';
+import { FileText, Info, Check, UploadCloud, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { getUserAvatar } from '../../utils/avatar';
 
 export default function Settings() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
+
+  // State data profil dari database
+  const [user, setUser] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State untuk Notifikasi Real-Time dari Backend
+  const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
     if (location.state?.activeTab) {
@@ -15,15 +22,124 @@ export default function Settings() {
     }
   }, [location.state]);
 
-  // Ambil data khusus Admin dari dummy.json
-  const adminData = dummyData.admin || {};
-  const formattedName = adminData.username ? adminData.username.charAt(0).toUpperCase() + adminData.username.slice(1) : 'Admin';
-  
-  // --- STATE UTAMA (PROFIL & PASSWORD JADI SATU) ---
+  // Helper waktu relatif (cth: "2 jam lalu")
+  const getRelativeTime = (dateString) => {
+    if (!dateString) return 'Baru saja';
+    const diffMs = new Date() - new Date(dateString);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'Baru saja';
+    if (diffMinutes < 60) return `${diffMinutes} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    if (diffDays === 1) return 'Kemarin';
+    return `${diffDays} hari lalu`;
+  };
+
+  // Helper mengambil ID notifikasi yang dibaca oleh admin
+  const getReadNotifIds = (uId) => {
+    try {
+      const saved = localStorage.getItem(`read_notifs_${uId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Tarik data profil admin & daftar pengajuan surat dari Backend API
+  const fetchAdminProfileAndNotifs = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      };
+
+      // 1. Ambil data profil Admin yang sedang login
+      const response = await fetch('http://localhost:8000/api/user', { headers });
+
+      let currentUid = 'admin_user';
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data);
+        currentUid = data.id || data.email || 'admin_user';
+
+        // 🔴 PERBAIKAN: Menggunakan ID unik admin untuk mengambil foto
+        const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
+        setFormData(prev => ({
+          ...prev,
+          nama: data.name || 'Administrator',
+          email: data.email || 'admin@stmik.ac.id',
+          img: savedImg || getUserAvatar(data)
+        }));
+      }
+
+      // 2. Ambil seluruh data pengajuan surat dari semua mahasiswa untuk Notifikasi Admin
+      const notifRes = await fetch('http://localhost:8000/api/admin/surat', { headers });
+      if (notifRes.ok) {
+        const suratData = await notifRes.json();
+        const arraySurat = Array.isArray(suratData) ? suratData : (suratData.data || []);
+        const readIds = getReadNotifIds(currentUid);
+
+        const formatted = arraySurat.map(surat => {
+          const notifId = `admin_surat_${surat.id}_${surat.status}`;
+          const mhsName = surat.user?.name || 'Mahasiswa';
+          const jenisSurat = surat.jenis_surat || 'Surat Pengantar';
+          const isRead = readIds.includes(notifId);
+
+          let message = '';
+          let type = 'info';
+
+          if (surat.status === 'Pending') {
+            message = `${mhsName} mengajukan ${jenisSurat}`;
+            type = 'warning';
+          } else if (surat.status === 'Diproses') {
+            message = `Pengajuan ${jenisSurat} dari ${mhsName} sedang diproses.`;
+            type = 'info';
+          } else if (surat.status === 'Selesai') {
+            message = `Pengajuan ${jenisSurat} dari ${mhsName} telah selesai diproses.`;
+            type = 'success';
+          } else {
+            message = `Pengajuan ${jenisSurat} dari ${mhsName} telah ditolak.`;
+            type = 'danger';
+          }
+
+          return {
+            id: notifId,
+            title: `Pengajuan ${surat.status}: ${jenisSurat}`,
+            message,
+            time: getRelativeTime(surat.created_at || surat.updated_at),
+            isRead,
+            type
+          };
+        });
+
+        setNotifications(formatted);
+      }
+
+    } catch (error) {
+      console.error("Gagal mengambil profil/notifikasi Admin:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminProfileAndNotifs();
+  }, []);
+
+  const formattedName = user.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : 'Administrator';
+
+  // --- STATE UTAMA (PROFIL & PASSWORD) ---
   const [formData, setFormData] = useState({
     nama: formattedName,
-    no_telp: adminData.no_telp || '0812-3456-7890',
-    img: adminData.img || "/assets/profile/default.png",
+    email: 'admin@stmik.ac.id',
+    img: getUserAvatar(null),
+    tempImg: null,
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -52,20 +168,28 @@ export default function Settings() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Notifikasi
-  const [notifications, setNotifications] = useState(dummyData.notifikasi || []);
-
   const markAllAsRead = () => {
-    setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
+    const uId = user.id || user.email || 'admin_user';
+    const allIds = notifications.map(n => n.id);
+    localStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
+    setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
   };
 
   // --- FUNGSI DRAG & DROP FOTO ---
   const handleFile = (file) => {
     if (file && file.type.startsWith('image/')) {
-      const imageUrl = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, img: imageUrl }));
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target.result;
+        setFormData(prev => ({ 
+          ...prev, 
+          img: imageUrl,
+          tempImg: imageUrl 
+        }));
+      };
+      reader.readAsDataURL(file);
     } else {
-      showNotification("Tolong upload file gambar (JPG/PNG) ya!", "warning");
+      showNotification("Harap unggah berkas gambar (JPG/PNG)!", "warning");
     }
   };
 
@@ -86,12 +210,12 @@ export default function Settings() {
     }
   };
 
-  // --- FUNGSI SIMPAN UNIVERSAL (SEKALI KLIK UNTUK SEMUA) ---
-  const handleSaveAll = (e) => {
+  // --- FUNGSI SIMPAN PERUBAHAN KE BACKEND API & LOCALSTORAGE ---
+  const handleSaveAll = async (e) => {
     e.preventDefault();
 
-    // Cek jika user berniat mengganti password (artinya mengisi salah satu kolom password)
     const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
+    const isChangingName = formData.nama && formData.nama !== user.name;
 
     if (isChangingPassword) {
       if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
@@ -104,23 +228,70 @@ export default function Settings() {
       }
     }
 
-    // Simulasi penyimpanan berhasil secara menyeluruh
-    let successMessage = "Perubahan berhasil disimpan!\n";
-    successMessage += `- Informasi Pegawai (Nama & No. Telp) diperbarui.\n`;
+    // Tembak backend API jika ada perubahan Nama atau Password
+    if (isChangingPassword || isChangingName) {
+      try {
+        const token = localStorage.getItem('token');
+        const payload = {};
+        if (isChangingName) payload.name = formData.nama;
+        if (isChangingPassword) {
+          payload.old_password = formData.oldPassword;
+          payload.new_password = formData.newPassword;
+        }
+
+        const res = await fetch('http://localhost:8000/api/user/profile', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          showNotification(data.message || "Gagal memperbarui profil di server.", "danger");
+          return;
+        }
+
+        setUser(data.data || { ...user, name: formData.nama });
+      } catch (err) {
+        showNotification("Gagal terhubung ke server backend!", "danger");
+        return;
+      }
+    }
+
+    // 🔴 PERBAIKAN: Simpan foto profil ke localStorage menggunakan ID unik
+    if (formData.tempImg) {
+      const uId = user.id || user.email || 'admin_user';
+      localStorage.setItem(`profile_img_${uId}`, formData.tempImg);
+      window.dispatchEvent(new Event('profileImageUpdated'));
+    }
+
+    let successMessage = "Perubahan profil berhasil disimpan!\n";
+    if (isChangingName) {
+      successMessage += `- Nama Lengkap diperbarui.\n`;
+    }
+    if (formData.tempImg) {
+      successMessage += `- Foto Profil diperbarui.\n`;
+    }
     if (isChangingPassword) {
-      successMessage += `- Password akun berhasil diubah.`;
+      successMessage += `- Password akun berhasil diperbarui.`;
     }
 
     showNotification(successMessage, "success");
 
-    // Kosongkan field password setelah berhasil disimpan
     setFormData(prev => ({
       ...prev,
+      tempImg: null,
       oldPassword: '',
       newPassword: '',
       confirmPassword: ''
     }));
   };
+
+  const avatarSrc = formData.img || getUserAvatar(user);
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
@@ -134,7 +305,9 @@ export default function Settings() {
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Settings</h2>
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
-            <span className="text-gray-700 font-medium text-[15px]">09 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
@@ -181,13 +354,13 @@ export default function Settings() {
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current.click()}
-                    className={`relative w-56 h-56 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
+                    className={`relative w-52 h-52 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
                       isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#3470B9] bg-white'
                     }`}
                   >
                     <img 
-                      src={formData.img} 
-                      alt="Profile Admin" 
+                      src={avatarSrc} 
+                      alt={formattedName} 
                       className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
                     />
                     
@@ -210,14 +383,20 @@ export default function Settings() {
                   />
 
                   <div className="text-center mb-6">
-                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formData.nama}</h3>
-                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{adminData.jabatan || 'Administrator'}</p>
+                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">
+                      {isLoading ? "Memuat..." : (user.name || formData.nama)}
+                    </h3>
+                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">Administrator Campus</p>
                   </div>
+
+                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
+                    Upload Foto Baru
+                  </button>
                 </div>
 
                 {/* KANAN: Form Informasi Pegawai & Keamanan */}
                 <div className="w-full lg:w-[70%]">
-                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pegawai</h4>
+                  <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pegawai (Dari Database)</h4>
                   
                   {/* Grid Informasi Pegawai */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
@@ -235,37 +414,20 @@ export default function Settings() {
 
                     {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">ID Pegawai / NIP</label>
-                      <input type="text" defaultValue={adminData.id_pegawai || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Role Akses</label>
+                      <input type="text" value={user.role || 'Admin'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-semibold capitalize select-none" />
                     </div>
                     
                     {/* TERKUNCI */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Operasional</label>
-                      <input type="email" defaultValue={adminData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="email" value={user.email || 'admin@stmik.ac.id'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     {/* TERKUNCI */}
                     <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Pekerja</label>
-                      <input type="text" defaultValue={adminData.status || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
-                    </div>
-
-                    {/* TERKUNCI */}
-                    <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jabatan</label>
-                      <input type="text" defaultValue={adminData.jabatan || 'Admin'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
-                    </div>
-
-                    {/* BISA DI EDIT */}
-                    <div>
-                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Telepon</label>
-                      <input 
-                        type="text" 
-                        value={formData.no_telp} 
-                        onChange={(e) => setFormData({...formData, no_telp: e.target.value})}
-                        className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all font-medium" 
-                      />
+                      <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Sistem</label>
+                      <input type="text" value="Aktif / Online" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
                     </div>
 
                   </div>
@@ -309,7 +471,7 @@ export default function Settings() {
                       </div>
                     </div>
 
-                    {/* Tombol Simpan Perubahan Utama di Paling Bawah */}
+                    {/* Tombol Simpan Perubahan Utama */}
                     <div className="flex justify-end pt-8">
                       <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
                         Simpan Perubahan
@@ -321,14 +483,14 @@ export default function Settings() {
               </form>
             )}
 
-            {/* --- ISI TAB NOTIFIKASI WEB --- */}
+            {/* --- ISI TAB NOTIFIKASI WEB (ADMIN) --- */}
             {activeTab === 'notifikasi' && (
               <div className="animate-fade-in w-full">
                 
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
                   <div>
-                    <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Aktivitas</h3>
-                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua notifikasi dan aktivitas terbaru di sistem administrasi.</p>
+                    <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Aktivitas Pengajuan Surat</h3>
+                    <p className="text-[14px] text-gray-500 mt-1">Daftar semua permohonan surat masuk dari mahasiswa di sistem.</p>
                   </div>
                   <button 
                     onClick={markAllAsRead}
@@ -340,36 +502,46 @@ export default function Settings() {
                 </div>
                 
                 <div className="flex flex-col gap-3">
-                  {notifications.map((notif) => (
-                    <div 
-                      key={notif.id} 
-                      className={`p-5 rounded-[12px] border transition-colors flex gap-5 items-start ${
-                        notif.isRead 
-                          ? 'bg-transparent border-gray-300'
-                          : 'bg-[#E8F0FA] border-[#A8C7F0]'
-                      }`}
-                    >
-                      <div className={`p-3 rounded-full flex-shrink-0 ${
-                        notif.isRead ? 'bg-gray-200 text-gray-500' : 'bg-[#2A60A4] text-white'
-                      }`}>
-                        {notif.type === 'pengajuan' ? <FileText size={20} /> : <Info size={20} />}
-                      </div>
-
-                      <div className="flex-1 pt-1">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className={`text-[16px] font-bold ${notif.isRead ? 'text-gray-700' : 'text-[#182D4A]'}`}>
-                            {notif.title}
-                          </h4>
-                          <span className={`text-[13px] font-medium ${notif.isRead ? 'text-gray-500' : 'text-[#2A60A4]'}`}>
-                            {notif.time}
-                          </span>
+                  {notifications.length > 0 ? (
+                    notifications.map((notif) => (
+                      <div 
+                        key={notif.id} 
+                        className={`p-5 rounded-[12px] border transition-colors flex gap-5 items-start ${
+                          notif.isRead 
+                            ? 'bg-transparent border-gray-300 opacity-80'
+                            : 'bg-[#E8F0FA] border-[#A8C7F0]'
+                        }`}
+                      >
+                        <div className={`p-3 rounded-full flex-shrink-0 ${
+                          notif.type === 'success' ? 'bg-emerald-100 text-emerald-700' :
+                          notif.type === 'danger' ? 'bg-red-100 text-red-700' :
+                          notif.type === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+                        }`}>
+                          {notif.type === 'success' ? <CheckCircle2 size={20} /> :
+                           notif.type === 'danger' ? <XCircle size={20} /> :
+                           notif.type === 'warning' ? <Clock size={20} /> : <FileText size={20} />}
                         </div>
-                        <p className={`text-[14px] leading-relaxed ${notif.isRead ? 'text-gray-600' : 'text-gray-800'}`}>
-                          {notif.message}
-                        </p>
+
+                        <div className="flex-1 pt-1">
+                          <div className="flex justify-between items-start mb-1">
+                            <h4 className={`text-[16px] font-bold ${notif.isRead ? 'text-gray-700' : 'text-[#182D4A]'}`}>
+                              {notif.title}
+                            </h4>
+                            <span className={`text-[13px] font-medium ${notif.isRead ? 'text-gray-500' : 'text-[#2A60A4]'}`}>
+                              {notif.time}
+                            </span>
+                          </div>
+                          <p className={`text-[14px] leading-relaxed ${notif.isRead ? 'text-gray-600' : 'text-gray-800'}`}>
+                            {notif.message}
+                          </p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-10 text-gray-500 text-sm font-medium">
+                      Belum ada notifikasi surat masuk saat ini.
                     </div>
-                  ))}
+                  )}
                 </div>
 
               </div>

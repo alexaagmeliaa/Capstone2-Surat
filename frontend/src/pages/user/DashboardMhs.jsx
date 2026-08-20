@@ -34,15 +34,28 @@ export default function DashboardMhs() {
         if (responseSurat.ok) {
           const arrayData = Array.isArray(dataSurat) ? dataSurat : (dataSurat.data || []);
           
-          const formatted = arrayData.map(item => ({
-            id: item.id,
-            jenis: item.jenis_surat || item.judul_surat || item.nama_surat || 'Surat Pengantar',
-            tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
-              day: 'numeric', month: 'long', year: 'numeric'
-            }),
-            status: item.status === 'disetujui' ? 'Selesai' :
-                    item.status === 'ditolak' ? 'Ditolak' : 'Pending'
-          }));
+          const formatted = arrayData.map(item => {
+            // Normalisasi status ke huruf kecil agar tidak error jika backend kirim huruf besar
+            const rawStatus = (item.status || '').toLowerCase();
+            let finalStatus = 'Pending';
+
+            if (rawStatus === 'disetujui' || rawStatus === 'selesai') {
+              finalStatus = 'Selesai';
+            } else if (rawStatus === 'ditolak') {
+              finalStatus = 'Ditolak';
+            } else if (rawStatus === 'diproses') {
+              finalStatus = 'Diproses';
+            }
+
+            return {
+              id: item.id,
+              jenis: item.jenis_surat || item.judul_surat || item.nama_surat || 'Surat Pengantar',
+              tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric'
+              }),
+              status: finalStatus
+            };
+          });
 
           setSuratList(formatted);
         }
@@ -205,12 +218,12 @@ export default function DashboardMhs() {
                       </td>
                       <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
                       <td className="px-6 py-4">
+                        {/* Perbaikan Warna Badge: Sekarang menampilkan merah jika Ditolak */}
                         <span className={`px-5 py-1 text-[13px] font-medium rounded-full border ${
-                          item.status === 'Pending' 
-                            ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' 
-                            : item.status === 'Diproses'
-                              ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]'
-                              : 'border-[#429961] text-[#429961] bg-[#E8F5EB]'
+                          item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
+                          item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :
+                          item.status === 'Ditolak' ? 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]' :
+                          'border-[#429961] text-[#429961] bg-[#E8F5EB]' // Selesai
                         }`}>
                           {item.status}
                         </span>

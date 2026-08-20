@@ -42,7 +42,7 @@ export default function ModalMahasiswa({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20 backdrop-blur-md transition-opacity p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent backdrop-blur-md transition-opacity p-4">
       
       <div className="bg-white w-full max-w-3xl rounded-[16px] shadow-2xl overflow-hidden animate-fade-in-up flex flex-col max-h-[90vh]">
         
@@ -64,8 +64,17 @@ export default function ModalMahasiswa({
               
               {/* Kolom Kiri & Kanan */}
               <div>
-                <label className="block text-[14px] font-semibold text-gray-700 mb-1.5">Nomor Induk Mahasiswa (NIM) <span className="text-red-500">*</span></label>
-                <input type="text" required value={formData.nim} onChange={(e) => setFormData({ ...formData, nim: e.target.value })} className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium" />
+                <label className="block text-[14px] font-semibold text-gray-700 mb-1.5">
+                  Nomor Induk Mahasiswa (NIM) <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="IF: 1223011, SI: 3224011"
+                  value={formData.nim} 
+                  onChange={(e) => setFormData({ ...formData, nim: e.target.value })} 
+                  className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium" 
+                />
               </div>
               
               <div>
@@ -75,7 +84,12 @@ export default function ModalMahasiswa({
 
               <div>
                 <label className="block text-[14px] font-semibold text-gray-700 mb-1.5">Program Studi <span className="text-red-500">*</span></label>
-                <select required value={formData.prodi} onChange={(e) => setFormData({ ...formData, prodi: e.target.value })} className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium">
+                <select 
+                  required 
+                  value={formData.prodi} 
+                  onChange={(e) => setFormData({ ...formData, prodi: e.target.value })} 
+                  className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium"
+                >
                   <option value="S1 - Teknik Informatika">S1 - Teknik Informatika</option>
                   <option value="S1 - Sistem Informasi">S1 - Sistem Informasi</option>
                 </select>
@@ -83,7 +97,14 @@ export default function ModalMahasiswa({
 
               <div>
                 <label className="block text-[14px] font-semibold text-gray-700 mb-1.5">Angkatan (Tahun) <span className="text-red-500">*</span></label>
-                <input type="number" required placeholder="Cth: 2023" value={formData.angkatan} onChange={(e) => setFormData({ ...formData, angkatan: e.target.value })} className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium" />
+                <input 
+                  type="number" 
+                  required 
+                  placeholder="Cth: 2024" 
+                  value={formData.angkatan} 
+                  onChange={(e) => setFormData({ ...formData, angkatan: e.target.value })} 
+                  className="w-full bg-white border border-gray-300 rounded-[8px] px-3.5 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium" 
+                />
               </div>
 
               <div>
