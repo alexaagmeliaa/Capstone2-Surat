@@ -9,18 +9,55 @@ export default function SettingMhs() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
 
+  // State data profil dari database
+  const [user, setUser] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+
   useEffect(() => {
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
 
-  const userData = dummyData.user || {};
-  const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
+  // Tarik data user asli dari database & cek localStorage untuk foto profil tersimpan
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:8000/api/user', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+
+          // Ambil foto dari localStorage jika sudah disimpan permanen
+          const savedImg = localStorage.getItem('profile_img');
+          setFormData(prev => ({
+            ...prev,
+            img: savedImg || data.img || "/assets/profile/default.png"
+          }));
+        }
+      } catch (error) {
+        console.error("Gagal mengambil profil:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const formattedName = user.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : 'Mahasiswa';
   
   // --- STATE UTAMA (FOTO & PASSWORD) ---
   const [formData, setFormData] = useState({
-    img: userData.img || "/assets/profile/default.png",
+    img: "/assets/profile/default.png",
+    tempImg: null, // Menyimpan file gambar sementara sebelum diklik "Simpan Perubahan"
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -56,11 +93,17 @@ export default function SettingMhs() {
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
   };
 
-  // --- FUNGSI DRAG & DROP FOTO ---
+  // --- FUNGSI DRAG & DROP FOTO (TANPA POPUP NOTIFIKASI) ---
   const handleFile = (file) => {
     if (file && file.type.startsWith('image/')) {
       const imageUrl = URL.createObjectURL(file);
-      setFormData(prev => ({ ...prev, img: imageUrl }));
+      
+      // Simpan sementara di state form & simpan file aslinya ke tempImg
+      setFormData(prev => ({ 
+        ...prev, 
+        img: imageUrl,
+        tempImg: imageUrl 
+      }));
     } else {
       showNotification("Tolong upload file gambar (JPG/PNG) ya!", "warning");
     }
@@ -83,11 +126,10 @@ export default function SettingMhs() {
     }
   };
 
-  // --- FUNGSI SIMPAN UNIVERSAL ---
+  // --- FUNGSI SIMPAN PERUBAHAN (BARU MUNCUL NOTIF & TERSIMPAN PERMANEN) ---
   const handleSaveAll = (e) => {
     e.preventDefault();
 
-    // Cek apakah user sedang mencoba mengganti password
     const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
 
     if (isChangingPassword) {
@@ -101,18 +143,23 @@ export default function SettingMhs() {
       }
     }
 
-    // Pesan sukses dinamis
+    // Jika user mengganti foto profil, simpan permanen ke localStorage saat tombol Simpan ditekan
+    if (formData.tempImg) {
+      localStorage.setItem('profile_img', formData.tempImg);
+      window.dispatchEvent(new Event('profileImageUpdated'));
+    }
+
     let successMessage = "Perubahan berhasil disimpan!\n";
-    successMessage += `- Foto Profil diperbarui (jika ada perubahan).\n`;
+    successMessage += `- Foto Profil berhasil diperbarui.\n`;
     if (isChangingPassword) {
       successMessage += `- Password akun berhasil diubah.`;
     }
 
     showNotification(successMessage, "success");
 
-    // Reset kolom password setelah berhasil
     setFormData(prev => ({
       ...prev,
+      tempImg: null,
       oldPassword: '',
       newPassword: '',
       confirmPassword: ''
@@ -131,7 +178,9 @@ export default function SettingMhs() {
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Profil Saya</h2>
           </div>
           <div className="flex flex-col items-end gap-3 pt-2">
-            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
@@ -178,15 +227,22 @@ export default function SettingMhs() {
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current.click()}
-                    className={`relative w-56 h-56 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
-                      isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#3470B9] bg-white'
+                    className={`relative w-48 h-48 rounded-full overflow-hidden border-[3px] border-[#3470B9] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
+                      isDragging ? 'bg-[#E8F5EB]' : 'bg-[#D1D5DB]'
                     }`}
                   >
-                    <img 
-                      src={formData.img} 
-                      alt="Profile" 
-                      className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
-                    />
+                    {formData.img === "/assets/profile/default.png" || !formData.img ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-[#D1D5DB] relative">
+                        <div className="w-20 h-20 rounded-full bg-[#8A939B] mb-2"></div>
+                        <div className="w-32 h-16 rounded-t-full bg-[#8A939B]"></div>
+                      </div>
+                    ) : (
+                      <img 
+                        src={formData.img} 
+                        alt="Profile" 
+                        className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
+                      />
+                    )}
                     
                     {/* Overlay saat di hover atau saat dragging */}
                     <div className={`absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
@@ -207,11 +263,15 @@ export default function SettingMhs() {
                   />
 
                   <div className="text-center mb-6">
-                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">{formattedName}</h3>
-                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">{userData.prodi || 'S1 - Teknik Informatika'}</p>
+                    <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">
+                      {isLoading ? "Memuat..." : formattedName}
+                    </h3>
+                    <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">
+                      {user.prodi || 'S1 - Teknik Informatika'}
+                    </p>
                   </div>
                   
-                  {/* Tombol pemicu file upload manual (alternatif klik) */}
+                  {/* Tombol pemicu file upload manual */}
                   <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
                     Upload Foto Baru
                   </button>
@@ -226,52 +286,52 @@ export default function SettingMhs() {
                     
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nama Lengkap</label>
-                      <input type="text" defaultValue={formattedName} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.name || ''} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nomor Induk Mahasiswa (NIM)</label>
-                      <input type="text" defaultValue={userData.nim || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.nim || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
                     
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Kampus</label>
-                      <input type="email" defaultValue={userData.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="email" value={user.email || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Mahasiswa</label>
-                      <input type="text" defaultValue={userData.status_aktif || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
+                      <input type="text" value={user.status || 'Aktif'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Angkatan</label>
-                      <input type="text" defaultValue={userData.angkatan || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.angkatan || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Mahasiswa</label>
-                      <input type="text" defaultValue={userData.jenis_mhs || 'Regular'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.jenis_mhs || 'Regular'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Jenis Kelamin</label>
-                      <input type="text" defaultValue={userData.jenis_kelamin || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.jenis_kelamin || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Dosen Wali</label>
-                      <input type="text" defaultValue={userData.dosen_wali || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.dosen_wali || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Tempat, Tanggal Lahir</label>
-                      <input type="text" defaultValue={userData.ttl || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
+                      <input type="text" value={user.ttl || '-'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
                     <div className="md:col-span-2">
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Alamat Lengkap</label>
-                      <textarea defaultValue={userData.alamat || '-'} rows="3" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium resize-none select-none"></textarea>
+                      <textarea value={user.alamat || '-'} rows="3" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium resize-none select-none"></textarea>
                     </div>
 
                   </div>
@@ -315,7 +375,7 @@ export default function SettingMhs() {
                       </div>
                     </div>
 
-                    {/* Tombol Simpan Perubahan Universal */}
+                    {/* Tombol Simpan Perubahan */}
                     <div className="flex justify-end pt-8">
                       <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
                         Simpan Perubahan

@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import ModalKategori from '../../components/ModalKategori'; 
-import ConfirmModal from '../../components/ConfirmModal'; // <-- Import ConfirmModal
-import dummyData from '../../data/dummy.json';
+import ConfirmModal from '../../components/ConfirmModal';
 import { Search, Plus, Edit, Trash2, X } from 'lucide-react';
 
 export default function Kategori() {
-  const [kategoriSurat, setKategoriSurat] = useState(dummyData.kategoriSurat || []);
+  const [kategoriSurat, setKategoriSurat] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // State untuk Kontrol Modal Tambah/Edit
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -18,7 +18,37 @@ export default function Kategori() {
 
   // State untuk Kontrol Modal Konfirmasi Hapus
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null); // Menyimpan ID yang mau dihapus
+  const [itemToDelete, setItemToDelete] = useState(null);
+
+  // --- TARIK DATA KATEGORI DARI DATABASE ---
+  useEffect(() => {
+    fetchKategori();
+  }, []);
+
+  const fetchKategori = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/kategori-surat', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        const formatted = (data.data || []).map(item => ({
+          id: item.id,
+          nama: item.nama_kategori,
+          deskripsi: item.deskripsi || '-'
+        }));
+        setKategoriSurat(formatted);
+      }
+    } catch (error) {
+      console.error("Gagal memuat kategori:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Fungsi Pencarian
   const filteredKategori = kategoriSurat.filter((item) =>
@@ -38,33 +68,68 @@ export default function Kategori() {
     setIsModalOpen(true);
   };
 
-  const handleSaveModal = (formData) => {
-    if (modalMode === 'add') {
-      const newKategori = { ...formData, id: Date.now() };
-      setKategoriSurat([...kategoriSurat, newKategori]);
-    } else {
-      const updatedKategori = kategoriSurat.map(item => 
-        item.id === formData.id ? formData : item
-      );
-      setKategoriSurat(updatedKategori);
+  // --- SIMPAN / TAMBAH & UPDATE KATEGORI KE DATABASE ---
+  const handleSaveModal = async (formData) => {
+    try {
+      const url = modalMode === 'add' 
+        ? 'http://localhost:8000/api/admin/kategori-surat' 
+        : `http://localhost:8000/api/admin/kategori-surat/${formData.id}`;
+      
+      const method = modalMode === 'add' ? 'POST' : 'PUT';
+
+      // Mengambil deskripsi secara fleksibel dari berbagai variasi nama properti modal
+      const deskripsiValue = formData.deskripsi || formData.keterangan || formData.description || '';
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          nama_kategori: formData.nama || formData.nama_kategori,
+          deskripsi: deskripsiValue 
+        })
+      });
+
+      const result = await response.json();
+      if (response.ok && result.success) {
+        fetchKategori(); // Refresh data dari database
+        setIsModalOpen(false); 
+      } else {
+        alert(result.message || "Gagal menyimpan kategori.");
+      }
+    } catch (error) {
+      console.error("Error saving kategori:", error);
     }
-    setIsModalOpen(false); 
   };
 
-  // --- LOGIKA HAPUS YANG BARU ---
-  
-  // 1. Tombol tong sampah diklik, buka modal konfirmasi
   const openDeleteConfirm = (id) => {
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  // 2. Tombol "Ya, Yakin" di klik di dalam modal
-  const confirmDelete = () => {
-    const filtered = kategoriSurat.filter(item => item.id !== itemToDelete);
-    setKategoriSurat(filtered);
-    setIsDeleteModalOpen(false); // Tutup modal
-    setItemToDelete(null); // Bersihkan state
+  // --- HAPUS KATEGORI DARI DATABASE ---
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/kategori-surat/${itemToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        fetchKategori(); // Refresh data setelah hapus
+      }
+    } catch (error) {
+      console.error("Error deleting kategori:", error);
+    } finally {
+      setIsDeleteModalOpen(false);
+      setItemToDelete(null);
+    }
   };
 
   return (
@@ -82,7 +147,9 @@ export default function Kategori() {
               <NotificationDropdown />
               <ProfileDropdown />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
@@ -124,7 +191,13 @@ export default function Kategori() {
                 </tr>
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
-                {filteredKategori.length > 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Memuat data...
+                    </td>
+                  </tr>
+                ) : filteredKategori.length > 0 ? (
                   filteredKategori.map((item, index) => (
                     <tr key={item.id} className="bg-[#F4F5F7] hover:bg-[#EAECEF] transition-colors">
                       <td className="px-6 py-5 text-[15px] text-black font-medium text-center">
@@ -146,7 +219,6 @@ export default function Kategori() {
                             <Edit size={18} strokeWidth={2} />
                           </button>
                           
-                          {/* Ubah onClick menjadi openDeleteConfirm */}
                           <button 
                             onClick={() => openDeleteConfirm(item.id)}
                             className="p-2 bg-white border border-gray-300 text-gray-600 hover:text-red-600 hover:border-red-600 rounded-lg transition-colors shadow-sm" 
@@ -154,15 +226,16 @@ export default function Kategori() {
                           >
                             <Trash2 size={18} strokeWidth={2} />
                           </button>
-
                         </div>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium">
-                      Tidak ada kategori surat yang cocok dengan pencarian "{searchTerm}".
+                    <td colSpan="4" className="px-6 py-10 text-center text-gray-500 font-medium italic">
+                      {searchTerm 
+                        ? `Tidak ada kategori surat yang cocok dengan pencarian "${searchTerm}".` 
+                        : "Belum ada kategori surat yang ditambahkan."}
                     </td>
                   </tr>
                 )}
@@ -180,7 +253,6 @@ export default function Kategori() {
         initialData={selectedKategori}
       />
 
-      {/* Panggil Modal Konfirmasi Universal Di Sini */}
       <ConfirmModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}

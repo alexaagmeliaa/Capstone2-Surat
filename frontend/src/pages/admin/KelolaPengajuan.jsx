@@ -1,21 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
-import ModalDetailPengajuan from '../../components/ModalDetailPengajuan'; // <-- Import Modal Baru
+import ModalDetailPengajuan from '../../components/ModalDetailPengajuan'; 
 import ConfirmModal from '../../components/ConfirmModal';
-import dummyData from '../../data/dummy.json';
-import { Search, XCircle, Clock, CheckCircle2, Eye, X } from 'lucide-react';
+import { Search, Eye, X, Filter } from 'lucide-react';
 
 export default function KelolaPengajuan() {
-  const [requests, setRequests] = useState(dummyData.pengajuanTerbaru || []);
+  const [requests, setRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const [filterStatus, setFilterStatus] = useState('Semua');
 
-  // State untuk kontrol Modal Detail
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState(null);
 
-  // State untuk Popup Confirm & Notification Modal
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
     type: 'warning',
@@ -25,42 +25,98 @@ export default function KelolaPengajuan() {
     confirmText: 'Ya, Yakin'
   });
 
-  // 1. Fungsi Pencarian (Filter by Nama atau NIM)
-  const filteredRequests = requests.filter((item) =>
-    item.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.nim?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    fetchRequests();
+  }, []);
 
-  // Eksekusi perubahan status sesungguhnya
-  const executeUpdateStatus = (id, newStatus) => {
-    const updatedRequests = requests.map(req => 
-      req.id === id ? { ...req, status: newStatus } : req
-    );
-    
-    // Update state tabel
-    setRequests(updatedRequests);
-    
-    // Jika modal sedang terbuka, update juga state di dalam modal agar tampilannya berubah seketika
-    if (selectedReq && selectedReq.id === id) {
-      setSelectedReq({ ...selectedReq, status: newStatus });
+  const fetchRequests = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/admin/surat', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok) {
+        const arrayData = Array.isArray(data) ? data : (data.data || []);
+        
+        const formattedData = arrayData.map(item => ({
+          id: item.id,
+          nama: item.user?.name || 'Mahasiswa',
+          nim: item.user?.nim || '-', 
+          jenis: item.jenis_surat, 
+          tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }),
+          status: item.status, 
+          keperluan: item.keperluan,
+          lampiran: item.lampiran // <--- INI BAGIAN PENTING YANG DITAMBAHKAN
+        }));
+        
+        setRequests(formattedData);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (newStatus === 'Selesai' || newStatus === 'Ditolak') {
-      setIsModalOpen(false);
-    }
-
-    // Tampilkan pemberitahuan sukses
-    setPopupModal({
-      isOpen: true,
-      type: 'success',
-      message: `Status pengajuan berhasil diubah menjadi ${newStatus}.`,
-      onConfirm: null,
-      showCancel: false,
-      confirmText: 'OK'
-    });
   };
 
-  // 2. Fungsi Mengubah Status (Membuka Modal Konfirmasi)
+  const filteredRequests = requests.filter((item) => {
+    const matchesSearch = item.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          item.nim?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = filterStatus === 'Semua' || item.status === filterStatus;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const executeUpdateStatus = async (id, newStatus) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/surat/${id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      if (response.ok) {
+        const updatedRequests = requests.map(req => 
+          req.id === id ? { ...req, status: newStatus } : req
+        );
+        setRequests(updatedRequests);
+        
+        if (selectedReq && selectedReq.id === id) {
+          setSelectedReq({ ...selectedReq, status: newStatus });
+        }
+        
+        if (newStatus === 'Selesai' || newStatus === 'Ditolak') {
+          setIsModalOpen(false);
+        }
+
+        setPopupModal({
+          isOpen: true,
+          type: 'success',
+          message: `Berhasil! Status pengajuan telah diubah menjadi ${newStatus}.`,
+          onConfirm: null,
+          showCancel: false,
+          confirmText: 'OK'
+        });
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || "Gagal mengubah status surat.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("Gagal terhubung ke server saat mengubah status.");
+    }
+  };
+
   const handleUpdateStatus = (id, newStatus) => {
     const modalType = newStatus === 'Ditolak' ? 'danger' : newStatus === 'Selesai' ? 'success' : 'warning';
     
@@ -74,16 +130,17 @@ export default function KelolaPengajuan() {
     });
   };
 
-  // 3. Fungsi Buka Modal Detail
   const openDetailModal = (req) => {
     setSelectedReq(req);
     setIsModalOpen(true);
   };
 
+  const statusTabs = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
+
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
       
-      <Sidebar activeMenu="kelola" />
+      <Sidebar activeMenu="kelola-surat" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto relative">
         
@@ -97,20 +154,38 @@ export default function KelolaPengajuan() {
               <NotificationDropdown />
               <ProfileDropdown />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
-        {/* Toolbar Pencarian */}
-        <div className="mb-6 flex justify-between items-center">
-          <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[380px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
-            <Search size={20} className="text-gray-400" />
+        <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          
+          <div className="flex bg-white rounded-xl shadow-sm border border-gray-300 p-1">
+            {statusTabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setFilterStatus(tab)}
+                className={`px-5 py-2.5 rounded-lg text-[14px] font-semibold transition-all ${
+                  filterStatus === tab 
+                    ? 'bg-[#2A60A4] text-white shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center bg-white border border-gray-300 rounded-xl px-4 py-2.5 w-full md:w-[320px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
+            <Search size={18} className="text-gray-400" />
             <input 
               type="text" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari NIM atau Nama Mahasiswa..." 
-              className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
+              placeholder="Cari Nama atau NIM..." 
+              className="w-full ml-3 outline-none text-[14px] text-gray-700 placeholder:text-gray-400"
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600 focus:outline-none">
@@ -120,7 +195,6 @@ export default function KelolaPengajuan() {
           </div>
         </div>
 
-        {/* Tabel Data Pengajuan */}
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -134,7 +208,13 @@ export default function KelolaPengajuan() {
                 </tr>
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
-                {filteredRequests.length > 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Memuat data...
+                    </td>
+                  </tr>
+                ) : filteredRequests.length > 0 ? (
                   filteredRequests.map((item) => (
                     <tr key={item.id} className="bg-[#F4F5F7] hover:bg-[#EAECEF] transition-colors">
                       <td className="px-6 py-4">
@@ -145,7 +225,7 @@ export default function KelolaPengajuan() {
                       <td className="px-6 py-4 text-[14px] text-gray-700">{item.tanggal}</td>
                       <td className="px-6 py-4">
                         <span className={`px-4 py-1.5 text-[12px] font-bold rounded-full border inline-block ${
-                          item.status === 'Pending' || item.status === 'Diterima'
+                          item.status === 'Pending' 
                             ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' 
                             : item.status === 'Diproses'
                               ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' 
@@ -156,58 +236,25 @@ export default function KelolaPengajuan() {
                           {item.status.toUpperCase()}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex justify-center items-center gap-2">
-                          
-                          {/* Tombol Lihat: Selalu muncul di semua status */}
-                          <button 
-                            onClick={() => openDetailModal(item)}
-                            className="p-2 bg-white border border-gray-400 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-                            title="Lihat Detail Surat"
-                          >
-                            <Eye size={18} strokeWidth={2} />
-                          </button>
-
-                          {/* Jika status PENDING/DITERIMA: Muncul Proses & Tolak */}
-                          {(item.status === 'Pending' || item.status === 'Diterima') && (
-                            <>
-                              <button 
-                                onClick={() => handleUpdateStatus(item.id, 'Diproses')}
-                                className="p-2 bg-white border border-[#2A60A4] text-[#2A60A4] hover:bg-[#E8F0FA] rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                                title="Mulai Proses Surat"
-                              >
-                                <Clock size={18} strokeWidth={2} />
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(item.id, 'Ditolak')}
-                                className="p-2 bg-white border border-[#E05252] text-[#E05252] hover:bg-[#FCEAEA] rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-red-200"
-                                title="Tolak Surat"
-                              >
-                                <XCircle size={18} strokeWidth={2} />
-                              </button>
-                            </>
-                          )}
-
-                          {/* Jika status DIPROSES: Muncul tombol Selesai */}
-                          {item.status === 'Diproses' && (
-                            <button 
-                              onClick={() => handleUpdateStatus(item.id, 'Selesai')}
-                              className="p-2 bg-white border border-[#429961] text-[#429961] hover:bg-[#E8F5EB] rounded-lg transition-colors shadow-sm flex items-center gap-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-200"
-                              title="Tandai Selesai"
-                            >
-                              <CheckCircle2 size={18} strokeWidth={2} />
-                              <span className="text-[13px] font-bold hidden lg:inline">Selesai</span>
-                            </button>
-                          )}
-
-                        </div>
+                      <td className="px-6 py-4 text-center">
+                        <button 
+                          onClick={() => openDetailModal(item)}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#2A60A4] text-[#2A60A4] hover:bg-[#E8F0FA] rounded-lg transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                          title="Lihat Detail Surat"
+                        >
+                          <Eye size={18} strokeWidth={2} />
+                          <span className="text-[13px] font-bold">Lihat Detail</span>
+                        </button>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
                     <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
-                      Tidak ada pengajuan yang cocok dengan pencarian "{searchTerm}".
+                      {searchTerm === '' 
+                        ? (filterStatus === 'Semua' ? "Belum ada pengajuan surat masuk." : `Belum ada surat dengan status ${filterStatus}.`)
+                        : `Tidak ada pengajuan yang cocok dengan pencarian "${searchTerm}".`
+                      }
                     </td>
                   </tr>
                 )}
@@ -218,7 +265,6 @@ export default function KelolaPengajuan() {
 
       </main>
 
-      {/* Panggil Modal Detail Pengajuan */}
       <ModalDetailPengajuan 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -226,7 +272,6 @@ export default function KelolaPengajuan() {
         onUpdateStatus={handleUpdateStatus} 
       />
 
-      {/* Panggil Modal Konfirmasi / Notifikasi Status */}
       <ConfirmModal 
         isOpen={popupModal.isOpen}
         onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}

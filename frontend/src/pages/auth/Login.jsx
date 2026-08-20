@@ -26,24 +26,45 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Fungsi saat tombol Log In diklik
-  const handleLogin = (e) => {
+  // Fungsi saat tombol Log In diklik (SUDAH TERHUBUNG KE BACKEND)
+  const handleLogin = async (e) => {
     e.preventDefault(); // Mencegah form untuk me-refresh halaman
+    setErrorMsg(''); // Kosongkan error sebelumnya
 
-    // Ambil data dari JSON
-    const adminAccount = dummyData.admin;
-    const userAccount = dummyData.user;
+    try {
+      // 1. Tembak API Login di Backend
+      const response = await fetch('http://localhost:8000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          email: emailInput,
+          password: passwordInput
+        })
+      });
 
-    // Cek logika kredensial
-    if (emailInput === adminAccount.email && passwordInput === adminAccount.password) {
-      // Login sebagai Admin
-      navigate('/ad/dashboard'); 
-    } else if (emailInput === userAccount.email && passwordInput === userAccount.password) {
-      // Login sebagai Mahasiswa
-      navigate('/mhs/dashboard'); 
-    } else {
-      // Kalau salah masukkan peringatan
-      setErrorMsg('Email atau password tidak cocok!');
+      const data = await response.json();
+
+      // 2. Cek apakah login sukses
+      if (response.ok) {
+        // SIMPAN TOKEN KE MEMORI BROWSER (Sangat Penting untuk fitur Ajukan Surat!)
+        localStorage.setItem('token', data.access_token);
+        
+        // Cek role untuk mengarahkan ke halaman yang benar
+        if (data.role === 'admin') {
+          navigate('/ad/dashboard'); 
+        } else {
+          navigate('/mhs/dashboard'); 
+        }
+      } else {
+        // Kalau password/email salah, tampilkan pesan dari backend
+        setErrorMsg(data.pesan || 'Email atau password tidak cocok!');
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setErrorMsg('Gagal terhubung ke server backend! Pastikan XAMPP/Laragon menyala.');
     }
   };
 

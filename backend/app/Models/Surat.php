@@ -8,7 +8,16 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 class Surat extends Model
 {
     use HasFactory;
-    protected $fillable = ['user_id', 'judul_surat', 'keperluan', 'status'];
+    
+    // Tambahkan 'tanggal_pengajuan' dan 'alasan_penolakan' di sini
+    protected $fillable = [
+        'user_id', 
+        'judul_surat', 
+        'keperluan', 
+        'status',
+        'tanggal_pengajuan',
+        'alasan_penolakan'
+    ];
 
     public function user()
     {

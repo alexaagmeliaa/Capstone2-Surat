@@ -1,23 +1,18 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import ConfirmModal from '../../components/ConfirmModal';
-import dummyData from '../../data/dummy.json';
 import { UploadCloud, Send, AlertCircle, FileType, CheckCircle } from 'lucide-react';
 
 export default function AjukanSurat() {
-  // Ambil data user dari dummy.json untuk auto-fill form
-  const userData = dummyData.user || {};
-  const formattedName = userData.username ? userData.username.charAt(0).toUpperCase() + userData.username.slice(1) : 'Mahasiswa';
-
-  // State untuk menyimpan input form
+  const [currentUser, setCurrentUser] = useState({ name: '', nim: '' });
+  const [jenisSuratList, setJenisSuratList] = useState([]); // State untuk menampung kategori dari database
   const [jenisSurat, setJenisSurat] = useState('');
   const [keperluan, setKeperluan] = useState('');
   const [fileName, setFileName] = useState('');
 
-  // State untuk Popup Modal
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
     type: 'info',
@@ -25,6 +20,39 @@ export default function AjukanSurat() {
     showCancel: false,
     confirmText: 'OK'
   });
+
+  // 1. Ambil data user yang sedang login & daftar kategori surat dari database
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      };
+
+      try {
+        // Ambil data user
+        const resUser = await fetch('http://localhost:8000/api/user', { headers });
+        if (resUser.ok) {
+          const userData = await resUser.json();
+          setCurrentUser(userData);
+        }
+
+        // Ambil data kategori surat dari database
+        const resKategori = await fetch('http://localhost:8000/api/kategori-surat', { headers });
+        if (resKategori.ok) {
+          const katData = await resKategori.json();
+          if (katData.success) {
+            setJenisSuratList(katData.data);
+          }
+        }
+      } catch (error) {
+        console.error("Gagal memuat data:", error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const showNotification = (message, type = 'warning') => {
     setPopupModal({
@@ -36,11 +64,9 @@ export default function AjukanSurat() {
     });
   };
 
-  // State untuk interaksi Drag & Drop
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
-  // --- FUNGSI DRAG & DROP FILE ---
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
       setFileName(e.target.files[0].name);
@@ -61,44 +87,67 @@ export default function AjukanSurat() {
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setFileName(e.dataTransfer.files[0].name);
+      if (fileInputRef.current) {
+        fileInputRef.current.files = e.dataTransfer.files;
+      }
     }
   };
 
   // --- FUNGSI SUBMIT PENGAJUAN ---
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validasi tambahan (meskipun sudah ada 'required' di HTML)
-    if (!jenisSurat || !keperluan || !fileName) {
-      showNotification("Harap lengkapi semua form dan unggah berkas persyaratan!", "warning");
+    if (!jenisSurat || !keperluan) {
+      showNotification("Harap lengkapi jenis surat dan keperluan!", "warning");
       return;
     }
 
-    // Simulasi POST data ke API (Laravel)
-    console.log("Data dikirim ke Backend:", { jenisSurat, keperluan, fileName });
+    const formData = new FormData();
+    formData.append('jenis_surat', jenisSurat);
+    formData.append('keperluan', keperluan);
     
-    // Notifikasi sukses
-    showNotification(`Pengajuan "${jenisSurat}" berhasil dikirim!\nSilakan pantau status surat di menu Riwayat.`, "success");
+    const file = fileInputRef.current?.files[0];
+    if (file) {
+      formData.append('lampiran', file);
+    }
 
-    // Kosongkan form kembali setelah sukses
-    setJenisSurat('');
-    setKeperluan('');
-    setFileName('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ''; // Reset input file DOM
+    try {
+      const response = await fetch('http://localhost:8000/api/mahasiswa/surat', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        showNotification(`Pengajuan "${jenisSurat}" berhasil dikirim ke Admin!\nSilakan pantau status surat di menu Riwayat.`, "success");
+        setJenisSurat('');
+        setKeperluan('');
+        setFileName('');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      } else {
+        showNotification(data.message || "Terjadi kesalahan saat mengirim data ke server.", "danger");
+      }
+
+    } catch (error) {
+      console.error("Error:", error);
+      showNotification("Gagal terhubung ke server backend! Pastikan backend menyala.", "danger");
     }
   };
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
       
-      {/* Sidebar Aktif di menu 'ajukan' */}
       <Sidebar activeMenu="ajukan" role="mahasiswa" />
 
-      {/* --- KONTEN UTAMA KANAN --- */}
       <main className="flex-1 px-10 py-10 overflow-y-auto">
         
-        {/* Header Atas */}
         <header className="flex justify-between items-start mb-10">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Pengajuan Surat</h2>
@@ -107,16 +156,16 @@ export default function AjukanSurat() {
           <div className="flex flex-col items-end gap-3 pt-2">
             <div className="flex items-center gap-4">
               <NotificationDropdown role="mahasiswa" />
-              <ProfileDropdown role="mahasiswa" />
+              <ProfileDropdown role="mahasiswa" user={currentUser} />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
-        {/* --- FORM AREA --- */}
         <div className="max-w-4xl bg-white rounded-[20px] border border-gray-200 shadow-sm overflow-hidden animate-fade-in-up">
           
-          {/* Alert Info Persyaratan */}
           <div className="bg-blue-50 border-l-[6px] border-[#2A60A4] p-5 flex items-start gap-4">
             <AlertCircle className="text-[#2A60A4] flex-shrink-0 mt-0.5" size={24} />
             <div>
@@ -129,7 +178,6 @@ export default function AjukanSurat() {
 
           <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-8">
             
-            {/* 1. Data Diri (Auto-fill & Read-only) */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Data Pemohon</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -137,7 +185,7 @@ export default function AjukanSurat() {
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Nama Lengkap</label>
                   <input 
                     type="text" 
-                    value={formattedName} 
+                    value={currentUser.name || 'Memuat data...'} 
                     disabled
                     className="w-full bg-gray-100 border border-gray-300 rounded-[10px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none"
                   />
@@ -146,7 +194,7 @@ export default function AjukanSurat() {
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Nomor Induk Mahasiswa (NIM)</label>
                   <input 
                     type="text" 
-                    value={userData.nim || '10119099'} 
+                    value={currentUser.nim || currentUser.email || 'Memuat data...'} 
                     disabled
                     className="w-full bg-gray-100 border border-gray-300 rounded-[10px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none"
                   />
@@ -154,12 +202,10 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* 2. Detail Pengajuan */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Detail Pengajuan Surat</h3>
               
               <div className="space-y-6">
-                {/* Pilihan Jenis Surat */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Pilih Jenis Surat <span className="text-red-500">*</span></label>
                   <div className="relative">
@@ -170,10 +216,12 @@ export default function AjukanSurat() {
                       className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-3 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] appearance-none font-medium transition-colors cursor-pointer"
                     >
                       <option value="" disabled>-- Pilih Kategori Surat --</option>
-                      <option value="Surat Keterangan Mahasiswa Aktif">Surat Keterangan Mahasiswa Aktif</option>
-                      <option value="Surat Pengantar Penelitian">Surat Pengantar Penelitian</option>
-                      <option value="Surat Keterangan Lulus">Surat Keterangan Lulus</option>
-                      <option value="Surat Pengantar Magang / PKL">Surat Pengantar Magang / PKL</option>
+                      {/* Pilihan dropdown sekarang dinamis berdasarkan database kategori */}
+                      {jenisSuratList.map((kat) => (
+                        <option key={kat.id} value={kat.nama_kategori}>
+                          {kat.nama_kategori}
+                        </option>
+                      ))}
                     </select>
                     <div className="absolute right-4 top-3.5 pointer-events-none text-gray-500">
                       <FileType size={20} />
@@ -181,7 +229,6 @@ export default function AjukanSurat() {
                   </div>
                 </div>
 
-                {/* Tujuan / Keperluan */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Keperluan Pengajuan <span className="text-red-500">*</span></label>
                   <textarea 
@@ -196,7 +243,6 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* 3. Upload Berkas (Dengan Drag & Drop) */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Lampiran Berkas</h3>
               
@@ -213,7 +259,7 @@ export default function AjukanSurat() {
                 <input 
                   type="file" 
                   ref={fileInputRef}
-                  required={!fileName} // Wajib jika belum ada file (misal via drag drop)
+                  required={!fileName}
                   onChange={handleFileChange}
                   accept=".pdf, .jpg, .jpeg, .png"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
@@ -245,7 +291,6 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* Tombol Aksi */}
             <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
               <Link 
                 to="/mhs/dashboard" 
@@ -276,16 +321,6 @@ export default function AjukanSurat() {
         confirmText={popupModal.confirmText}
       />
 
-      {/* Tambahan Animasi Muncul */}
-      <style dangerouslySetInnerHTML={{__html: `
-        .animate-fade-in-up {
-          animation: fadeInUp 0.4s ease-out;
-        }
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(15px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}} />
     </div>
   );
 }

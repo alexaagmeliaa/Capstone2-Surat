@@ -11,7 +11,22 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role'])] // 2. Tambahkan 'role' di sini
+#[Fillable([
+    'name', 
+    'email', 
+    'password', 
+    'plain_password', // <--- Tambahkan ini agar admin bisa melihat password jika mahasiswa lupa
+    'role', 
+    'nim', 
+    'prodi', 
+    'jenis_mhs', 
+    'angkatan', 
+    'jenis_kelamin', 
+    'dosen_wali', 
+    'ttl', 
+    'alamat', 
+    'status'
+])] 
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {

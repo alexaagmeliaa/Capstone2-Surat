@@ -8,27 +8,30 @@ export default function ModalMahasiswa({
   mode = 'add', 
   initialData 
 }) {
-  // Data default form yang mencakup semua field yang kamu minta
-  const defaultData = { 
-    id: null, 
-    nim: '', 
-    nama: '', 
-    prodi: 'S1 - Teknik Informatika', 
-    angkatan: '',
-    status: 'Aktif',
-    jenis_mhs: 'Reguler',
-    jenis_kelamin: 'Laki-Laki',
-    dosen_wali: '',
-    ttl: '',
-    alamat: '',
-    email: '',
-    password: ''
-  };
   
-  const [formData, setFormData] = useState(initialData || defaultData);
+  // Fungsi untuk menyiapkan data awal (aman untuk tambah maupun edit data)
+  const getInitialFormState = () => ({
+    id: initialData?.id || null, 
+    nim: initialData?.nim || '', 
+    nama: initialData?.nama || initialData?.name || '', 
+    prodi: initialData?.prodi || 'S1 - Teknik Informatika', 
+    angkatan: initialData?.angkatan || '',
+    status: initialData?.status || 'Aktif',
+    jenis_mhs: initialData?.jenis_mhs || 'Reguler',
+    jenis_kelamin: initialData?.jenis_kelamin || 'Laki-Laki',
+    dosen_wali: initialData?.dosen_wali || '',
+    ttl: initialData?.ttl || '',
+    alamat: initialData?.alamat || '',
+    email: initialData?.email || '',
+    password: ''
+  });
+  
+  const [formData, setFormData] = useState(getInitialFormState());
 
   useEffect(() => {
-    setFormData(initialData || defaultData);
+    if (isOpen) {
+      setFormData(getInitialFormState());
+    }
   }, [initialData, isOpen]);
 
   if (!isOpen) return null;
@@ -137,7 +140,6 @@ export default function ModalMahasiswa({
                 </div>
               </div>
 
-
             </div>
 
           </form>
@@ -164,7 +166,6 @@ export default function ModalMahasiswa({
           from { opacity: 0; transform: translateY(20px) scale(0.95); }
           to { opacity: 1; transform: translateY(0) scale(1); }
         }
-        /* Custom Scrollbar agar rapi */
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
         }
