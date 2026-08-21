@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
@@ -10,6 +10,9 @@ export default function DataMahasiswa() {
   const [mahasiswa, setMahasiswa] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+
+  // Reference untuk Hidden File Input CSV
+  const fileInputRef = useRef(null);
 
   // State untuk Modal Notifikasi
   const [popupModal, setPopupModal] = useState({ 
@@ -59,7 +62,7 @@ export default function DataMahasiswa() {
     }
   };
 
-  // 2. Fungsi Pencarian & Filter (Filter NIM, Nama, dan Program Studi + Sorting)
+  // 2. Fungsi Pencarian & Filter
   const filteredMhs = (mahasiswa || [])
     .filter((item) => {
       const nimStr = String(item.nim || item.email || '');
@@ -95,6 +98,100 @@ export default function DataMahasiswa() {
       }
       return 0;
     });
+
+  // --- FUNGSI BARU: IMPORT DATA CSV ---
+  const handleImportCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsLoading(true);
+    const reader = new FileReader();
+    
+    reader.onload = async (event) => {
+      const text = event.target.result;
+      
+      // Deteksi pemisah: koma (,) untuk CSV standar atau titik koma (;) untuk CSV Excel Indonesia
+      const delimiter = text.includes(';') ? ';' : ','; 
+      
+      // Pecah per baris dan bersihkan dari baris kosong
+      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
+      
+      if (rows.length < 2) {
+        setPopupModal({ isOpen: true, type: 'danger', message: 'File CSV kosong atau format tidak valid!', showCancel: false, confirmText: 'OK' });
+        setIsLoading(false);
+        return;
+      }
+
+      // Ambil array header dan ubah jadi huruf kecil semua untuk pencocokan kunci (key)
+      const headers = rows[0].split(delimiter).map(h => h.trim().toLowerCase());
+      
+      let successCount = 0;
+      let failCount = 0;
+
+      // Looping mulai dari baris 1 (karena baris 0 adalah Header)
+      for (let i = 1; i < rows.length; i++) {
+        const values = rows[i].split(delimiter).map(v => v.trim());
+        let item = {};
+        
+        headers.forEach((header, index) => {
+          // Bersihkan tanda kutip jika data CSV di-wrap pakai string quote ("")
+          item[header] = values[index] ? values[index].replace(/^"|"$/g, '') : '';
+        });
+
+        try {
+          // Sesuaikan dengan struktur form database yang kamu punya
+          const payload = {
+            name: item.nama || item.name,
+            email: item.email || `${item.nim || Date.now()}@student.stmik.ac.id`,
+            password: item.password || 'password123',
+            nim: item.nim,
+            prodi: item.prodi || 'Teknik Informatika',
+            jenis_mhs: item.jenis_mhs || 'Reguler',
+            angkatan: item.angkatan || new Date().getFullYear(),
+            jenis_kelamin: item.jenis_kelamin || 'Laki-Laki',
+            dosen_wali: item.dosen_wali || '-',
+            ttl: item.ttl || '-',
+            alamat: item.alamat || '-',
+            status: item.status || 'Aktif',
+          };
+
+          const response = await fetch('http://localhost:8000/api/admin/register-mahasiswa', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          failCount++;
+        }
+      }
+
+      // Tampilkan hasil akhir import
+      setPopupModal({
+        isOpen: true,
+        type: failCount === 0 ? 'success' : 'warning',
+        message: `Proses Import Selesai!\n\n✅ Berhasil: ${successCount} data\n❌ Gagal: ${failCount} data`,
+        showCancel: false,
+        confirmText: 'Tutup',
+        onConfirm: () => fetchMahasiswa()
+      });
+
+      // Reset value input file agar bisa import file yang sama lagi jika perlu
+      e.target.value = null;
+      setIsLoading(false);
+    };
+
+    reader.readAsText(file);
+  };
 
   // 3. Fungsi Modal Tambah
   const openAddModal = () => {
@@ -242,7 +339,7 @@ export default function DataMahasiswa() {
     setIsDeleteModalOpen(true);
   };
 
-  // 7. Eksekusi Hapus Data (Terhubung ke Backend)
+  // 7. Eksekusi Hapus Data
   const confirmDelete = async () => {
     try {
       const response = await fetch(`http://localhost:8000/api/admin/mahasiswa/${itemToDelete}`, {
@@ -256,7 +353,7 @@ export default function DataMahasiswa() {
       if (response.ok) {
         setIsDeleteModalOpen(false);
         setItemToDelete(null);
-        fetchMahasiswa(); // Muat ulang data dari database agar tabel terupdate otomatis
+        fetchMahasiswa();
       } else {
         alert('Gagal menghapus data.');
       }
@@ -344,7 +441,19 @@ export default function DataMahasiswa() {
           </div>
 
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <button className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto">
+            {/* Input Tersembunyi untuk membaca File CSV */}
+            <input 
+              type="file" 
+              accept=".csv" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleImportCSV} 
+            />
+            {/* Tombol Pemicu Import */}
+            <button 
+              onClick={() => fileInputRef.current.click()}
+              className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto"
+            >
               <FileUp size={18} strokeWidth={2.5} />
               Import Data
             </button>

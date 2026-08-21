@@ -6,18 +6,9 @@ export default function NotificationDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // State untuk menyimpan notifikasi asli dari Backend API
+  // State untuk menyimpan notifikasi
   const [notifications, setNotifications] = useState([]);
-
-  // Ambil UID dari cache agar sinkron dan spesifik per orang
-  const [uId, setUid] = useState(() => {
-    const cached = localStorage.getItem('cached_user_data');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      return parsed.id || parsed.email || (role === 'admin' ? 'admin_user' : 'guest');
-    }
-    return role === 'admin' ? 'admin_user' : 'guest';
-  });
+  const [uId, setUid] = useState(null);
 
   // Helper mengambil ID notifikasi yang dibaca dari LocalStorage
   const getReadNotifIds = (userId) => {
@@ -29,7 +20,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
     }
   };
 
-  // Helper waktu relatif (cth: "2 jam lalu")
+  // Helper waktu relatif
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Baru saja';
     const diffMs = new Date() - new Date(dateString);
@@ -44,33 +35,48 @@ export default function NotificationDropdown({ role = 'admin' }) {
     return `${diffDays} hari lalu`;
   };
 
-  // Tarik data notifikasi dari Backend berdasarkan Role
+  // Tarik data notifikasi dari Backend
   const loadNotifications = async () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      // Bedakan endpoint yang ditembak berdasarkan role
-      const endpoint = role === 'admin' 
+      const endpointSurat = role === 'admin' 
         ? 'http://localhost:8000/api/admin/surat' 
         : 'http://localhost:8000/api/mahasiswa/surat';
 
-      const response = await fetch(endpoint, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json'
-        }
-      });
+      // JURUS AMPUH: Tarik profil user dan notifikasi secara serentak (Promise.all)
+      // Ini memastikan kita 100% mendapatkan UID yang valid, tidak nyangkut di 'guest'
+      const [resUser, resSurat] = await Promise.all([
+        fetch('http://localhost:8000/api/user', {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        }),
+        fetch(endpointSurat, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+        })
+      ]);
 
-      if (response.ok) {
-        const data = await response.json();
-        const arraySurat = Array.isArray(data) ? data : (data.data || []);
+      // Evaluasi UID User
+      let activeUid = role === 'admin' ? 'admin_user' : 'guest';
+      if (resUser.ok) {
+        const userData = await resUser.json();
+        activeUid = userData.id || userData.email || activeUid;
+        setUid(activeUid); // Kunci UID untuk fungsi markAllAsRead
+        localStorage.setItem('cached_user_data', JSON.stringify(userData)); // Perbarui cache
+      }
+
+      if (resSurat.ok) {
+        const dataSurat = await resSurat.json();
+        const arraySurat = Array.isArray(dataSurat) ? dataSurat : (dataSurat.data || []);
         
-        const readIds = getReadNotifIds(uId);
+        const readIds = getReadNotifIds(activeUid);
 
-        // Format data mentah dari backend menjadi bentuk notifikasi
+        // PERBAIKAN FORMAT ID: Pastikan singkatan 'mhs' persis sama dengan halaman Settings
+        const prefix = role === 'admin' ? 'admin' : 'mhs';
+
+        // Format data mentah
         const formatted = arraySurat.map(surat => {
-          const notifId = `${role}_surat_${surat.id}_${surat.status}`;
+          const notifId = `${prefix}_surat_${surat.id}_${surat.status}`;
           const jenisSurat = surat.jenis_surat || surat.judul_surat || 'Surat Pengantar';
           const mhsName = surat.user?.name || 'Mahasiswa';
           const timeStr = getRelativeTime(surat.created_at || surat.updated_at);
@@ -79,7 +85,6 @@ export default function NotificationDropdown({ role = 'admin' }) {
           let message = '';
           let type = 'info';
 
-          // Logika Pesan Khusus ADMIN
           if (role === 'admin') {
             if (surat.status === 'Pending') {
               message = `${mhsName} baru saja mengajukan ${jenisSurat}.`;
@@ -91,9 +96,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
             } else {
               message = `Pengajuan ${jenisSurat} milik ${mhsName} telah ditolak.`;
             }
-          } 
-          // Logika Pesan Khusus MAHASISWA
-          else {
+          } else {
             if (surat.status === 'Selesai') {
               message = `Hore! Pengajuan ${jenisSurat} Anda telah selesai diproses!`;
             } else if (surat.status === 'Ditolak') {
@@ -116,9 +119,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
           };
         });
 
-        // Urutkan notifikasi dari yang paling baru
         formatted.sort((a, b) => b.timestamp - a.timestamp);
-
         setNotifications(formatted);
       }
     } catch (error) {
@@ -126,10 +127,9 @@ export default function NotificationDropdown({ role = 'admin' }) {
     }
   };
 
-  // Muat notifikasi saat komponen pertama kali dirender
   useEffect(() => {
     loadNotifications();
-  }, [role, uId]);
+  }, [role]);
 
   const unreadCount = notifications.filter(notif => !notif.isRead).length;
 
@@ -143,10 +143,22 @@ export default function NotificationDropdown({ role = 'admin' }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fungsi menandai semua sudah dibaca & menyimpannya ke LocalStorage khusus UID ini
+  // Fungsi menandai semua sudah dibaca
   const markAllAsRead = () => {
+    // Kalau uId belum ada, tarik manual dari cache sebagai pencegahan terakhir
+    let currentUid = uId;
+    if (!currentUid) {
+      const cached = localStorage.getItem('cached_user_data');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        currentUid = parsed.id || parsed.email;
+      } else {
+        currentUid = role === 'admin' ? 'admin_user' : 'guest';
+      }
+    }
+
     const allIds = notifications.map(n => n.id);
-    localStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
+    localStorage.setItem(`read_notifs_${currentUid}`, JSON.stringify(allIds));
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
   };
 
@@ -185,7 +197,6 @@ export default function NotificationDropdown({ role = 'admin' }) {
       {isOpen && (
         <div className="absolute right-0 mt-3 w-[420px] bg-[#F4F5F7] border border-gray-300 rounded-[16px] shadow-2xl z-50 overflow-hidden flex flex-col">
           
-          {/* Segitiga kecil di atas (Tooltip Arrow) */}
           <div className="absolute -top-2 right-4 w-4 h-4 bg-[#EAECEF] rotate-45 border-t border-l border-gray-300 z-0"></div>
 
           {/* Header */}
@@ -207,8 +218,8 @@ export default function NotificationDropdown({ role = 'admin' }) {
                   key={notif.id} 
                   className={`p-4 rounded-[16px] border flex gap-4 items-center transition-colors ${
                     notif.isRead 
-                      ? 'bg-[#C9CCCB] border-gray-400' // Read
-                      : 'bg-[#D6E4F0] border-[#3470B9]' // Unread
+                      ? 'bg-[#C9CCCB] border-gray-400' 
+                      : 'bg-[#D6E4F0] border-[#3470B9]' 
                   }`}
                 >
                   {/* Icon */}
@@ -233,7 +244,6 @@ export default function NotificationDropdown({ role = 'admin' }) {
 
           {/* Footer */}
           <div className="bg-[#EAECEF] py-3 text-center border-t border-gray-300 relative z-10">
-            {/* Tautan yang dinamis mengarah berdasarkan role */}
             <Link 
                 to={settingPath} 
                 state={{ activeTab: 'notifikasi' }} 
@@ -246,7 +256,6 @@ export default function NotificationDropdown({ role = 'admin' }) {
         </div>
       )}
 
-      {/* Tambahan style untuk mempercantik scrollbar */}
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;

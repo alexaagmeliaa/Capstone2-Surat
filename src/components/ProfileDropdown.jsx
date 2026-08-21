@@ -66,6 +66,10 @@ export default function ProfileDropdown({ role = 'admin' }) {
       const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
       if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
         setProfileImg(savedImg);
+      } else {
+        // PERBAIKAN: Jika user baru tidak punya foto tersimpan, wajib RESET ke null 
+        // agar fungsi getUserAvatar (inisial nama) bisa mengambil alih
+        setProfileImg(null);
       }
     } catch (error) {
       console.error("Gagal memuat profil dropdown:", error);
@@ -82,6 +86,8 @@ export default function ProfileDropdown({ role = 'admin' }) {
       const savedImg = localStorage.getItem(`profile_img_${uid}`);
       if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
         setProfileImg(savedImg);
+      } else {
+        setProfileImg(null);
       }
     };
 
@@ -112,6 +118,11 @@ export default function ProfileDropdown({ role = 'admin' }) {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     localStorage.removeItem('cached_user_data'); // Hapus cache saat logout
+    
+    // PERBAIKAN: Hapus cache fallback default agar tidak nyangkut saat akun baru login pertama kali
+    localStorage.removeItem('profile_img_admin_user');
+    localStorage.removeItem('profile_img_guest');
+    
     navigate('/login');
   };
 
