@@ -1,15 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import ModalMahasiswa from '../../components/ModalMahasiswa';
 import ConfirmModal from '../../components/ConfirmModal';
-import dummyData from '../../data/dummy.json';
-import { Search, Bell, Plus, FileUp, Edit, Trash2, X } from 'lucide-react';
+import { Search, Bell, Plus, FileUp, Edit, Trash2, X, Filter } from 'lucide-react';
 
 export default function DataMahasiswa() {
-  const [mahasiswa, setMahasiswa] = useState(dummyData.dataMahasiswa || []);
+  const [mahasiswa, setMahasiswa] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // State untuk Modal Notifikasi
+  const [popupModal, setPopupModal] = useState({ 
+    isOpen: false, 
+    type: 'success', 
+    message: '', 
+    showCancel: false, 
+    confirmText: 'OK', 
+    onConfirm: null 
+  });
 
   // State Kontrol Modal Form
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -20,52 +30,240 @@ export default function DataMahasiswa() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  // 1. Fungsi Pencarian (Filter NIM atau Nama)
-  const filteredMhs = mahasiswa.filter((item) =>
-    item.nim.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.nama.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [selectedProdi, setSelectedProdi] = useState('Semua');
+  const [sortBy, setSortBy] = useState('nim_asc');
 
-  // 2. Fungsi Modal Tambah
+  // --- 1. TARIK DATA MAHASISWA DARI DATABASE SAAT HALAMAN DIBUKA ---
+  useEffect(() => {
+    fetchMahasiswa();
+  }, []);
+
+  const fetchMahasiswa = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/admin/mahasiswa', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        const arrayData = Array.isArray(data) ? data : (data.data || []);
+        setMahasiswa(arrayData);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data mahasiswa:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 2. Fungsi Pencarian & Filter (Filter NIM, Nama, dan Program Studi + Sorting)
+  const filteredMhs = (mahasiswa || [])
+    .filter((item) => {
+      const nimStr = String(item.nim || item.email || '');
+      const namaStr = String(item.nama || item.name || '');
+      const matchesSearch = 
+        nimStr.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        namaStr.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const itemProdi = String(item.prodi || '').toLowerCase();
+      const matchesProdi = 
+        selectedProdi === 'Semua' || 
+        (selectedProdi === 'Teknik Informatika' && (itemProdi.includes('teknik') || itemProdi.includes('ti') || itemProdi.includes('if'))) ||
+        (selectedProdi === 'Sistem Informasi' && (itemProdi.includes('sistem') || itemProdi.includes('si')));
+
+      return matchesSearch && matchesProdi;
+    })
+    .sort((a, b) => {
+      const nimA = String(a.nim || '');
+      const nimB = String(b.nim || '');
+      const namaA = String(a.nama || a.name || '');
+      const namaB = String(b.nama || b.name || '');
+      const prodiA = String(a.prodi || '');
+      const prodiB = String(b.prodi || '');
+
+      if (sortBy === 'nim_asc') {
+        return nimA.localeCompare(nimB, undefined, { numeric: true });
+      } else if (sortBy === 'nim_desc') {
+        return nimB.localeCompare(nimA, undefined, { numeric: true });
+      } else if (sortBy === 'nama') {
+        return namaA.localeCompare(namaB);
+      } else if (sortBy === 'prodi') {
+        return prodiA.localeCompare(prodiB);
+      }
+      return 0;
+    });
+
+  // 3. Fungsi Modal Tambah
   const openAddModal = () => {
     setModalMode('add');
     setSelectedMhs(null);
     setIsModalOpen(true);
   };
 
-  // 3. Fungsi Modal Edit
+  // 4. Fungsi Modal Edit
   const openEditModal = (data) => {
     setModalMode('edit');
     setSelectedMhs(data);
     setIsModalOpen(true);
   };
 
-  // 4. Handle Simpan dari Modal
-  const handleSaveModal = (formData) => {
+  // 5. Handle Simpan (Terhubung ke Backend)
+  const handleSaveModal = async (formData) => {
     if (modalMode === 'add') {
-      const newMhs = { ...formData, id: Date.now() };
-      setMahasiswa([newMhs, ...mahasiswa]); // Tambah ke atas
+      try {
+        const generatedEmail = formData.email || `${formData.nim || Date.now()}@student.kampus.ac.id`;
+
+        const response = await fetch('http://localhost:8000/api/admin/register-mahasiswa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            name: formData.nama || formData.name,
+            email: generatedEmail,
+            password: formData.password || 'password123',
+            nim: formData.nim,
+            prodi: formData.prodi,
+            jenis_mhs: formData.jenis_mhs,
+            angkatan: formData.angkatan,
+            jenis_kelamin: formData.jenis_kelamin, 
+            dosen_wali: formData.dosen_wali,
+            ttl: formData.ttl,
+            alamat: formData.alamat,
+            status: formData.status,
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setIsModalOpen(false);
+          setPopupModal({
+            isOpen: true,
+            type: 'success',
+            message: 'Berhasil! Akun mahasiswa baru telah terdaftar.',
+            showCancel: false,
+            confirmText: 'OK',
+            onConfirm: () => fetchMahasiswa()
+          });
+        } else {
+          setIsModalOpen(false);
+          setPopupModal({
+            isOpen: true,
+            type: 'danger',
+            message: `Gagal mendaftar: ${data.message || data.pesan || 'Email sudah terdaftar.'}`,
+            showCancel: false,
+            confirmText: 'Tutup',
+            onConfirm: null
+          });
+        }
+      } catch (error) {
+        setIsModalOpen(false);
+        setPopupModal({
+          isOpen: true,
+          type: 'danger',
+          message: 'Terjadi kesalahan koneksi ke server!',
+          showCancel: false,
+          confirmText: 'Tutup',
+          onConfirm: null
+        });
+      }
     } else {
-      const updatedMhs = mahasiswa.map(item => 
-        item.id === formData.id ? formData : item
-      );
-      setMahasiswa(updatedMhs);
+      // BAGIAN EDIT DATA
+      try {
+        const response = await fetch(`http://localhost:8000/api/admin/mahasiswa/${formData.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({
+            name: formData.nama || formData.name,
+            email: formData.email,
+            nim: formData.nim,
+            prodi: formData.prodi,
+            jenis_mhs: formData.jenis_mhs,
+            angkatan: formData.angkatan,
+            jenis_kelamin: formData.jenis_kelamin,
+            dosen_wali: formData.dosen_wali,
+            ttl: formData.ttl,
+            alamat: formData.alamat,
+            status: formData.status,
+            password: formData.password || undefined,
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setIsModalOpen(false);
+          setPopupModal({
+            isOpen: true,
+            type: 'success',
+            message: 'Berhasil! Data mahasiswa telah diperbarui.',
+            showCancel: false,
+            confirmText: 'OK',
+            onConfirm: () => fetchMahasiswa()
+          });
+        } else {
+          setIsModalOpen(false);
+          setPopupModal({
+            isOpen: true,
+            type: 'danger',
+            message: `Gagal memperbarui: ${data.message || 'Terjadi kesalahan.'}`,
+            showCancel: false,
+            confirmText: 'Tutup',
+            onConfirm: null
+          });
+        }
+      } catch (error) {
+        setIsModalOpen(false);
+        setPopupModal({
+          isOpen: true,
+          type: 'danger',
+          message: 'Terjadi kesalahan koneksi ke server!',
+          showCancel: false,
+          confirmText: 'Tutup',
+          onConfirm: null
+        });
+      }
     }
-    setIsModalOpen(false); 
   };
 
-  // 5. Fungsi Modal Hapus
+  // 6. Fungsi Modal Hapus
   const openDeleteConfirm = (id) => {
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  // 6. Eksekusi Hapus Data
-  const confirmDelete = () => {
-    const filtered = mahasiswa.filter(item => item.id !== itemToDelete);
-    setMahasiswa(filtered);
-    setIsDeleteModalOpen(false);
-    setItemToDelete(null);
+  // 7. Eksekusi Hapus Data (Terhubung ke Backend)
+  const confirmDelete = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/mahasiswa/${itemToDelete}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setIsDeleteModalOpen(false);
+        setItemToDelete(null);
+        fetchMahasiswa(); // Muat ulang data dari database agar tabel terupdate otomatis
+      } else {
+        alert('Gagal menghapus data.');
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert('Terjadi kesalahan koneksi ke server.');
+    }
   };
 
   return (
@@ -85,42 +283,79 @@ export default function DataMahasiswa() {
               <NotificationDropdown />
               <ProfileDropdown />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">09 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-6">
+        <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
           
-          <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[380px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
-            <Search size={20} className="text-gray-400" />
-            <input 
-              type="text" 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari NIM atau Nama Mahasiswa..." 
-              className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600">
-                <X size={16} />
-              </button>
-            )}
+          {/* Group Filter & Search */}
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+            
+            {/* Search Input */}
+            <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full sm:w-[300px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
+              <Search size={20} className="text-gray-400" />
+              <input 
+                type="text" 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Cari NIM atau Nama..." 
+                className="w-full ml-3 outline-none text-[15px] text-gray-700 placeholder:text-gray-400"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="text-gray-400 hover:text-gray-600">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter Program Studi */}
+            <div className="relative w-full sm:w-[220px]">
+              <select
+                value={selectedProdi}
+                onChange={(e) => setSelectedProdi(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-[12px] pl-4 pr-10 py-3 text-[14px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#2A60A4] shadow-sm appearance-none cursor-pointer"
+              >
+                <option value="Semua">Semua Program Studi</option>
+                <option value="Teknik Informatika">Teknik Informatika (IF)</option>
+                <option value="Sistem Informasi">Sistem Informasi (SI)</option>
+              </select>
+              <div className="absolute right-3.5 top-3.5 pointer-events-none text-gray-500">
+                <Filter size={18} />
+              </div>
+            </div>
+
+            {/* Dropdown Urutkan */}
+            <div className="relative w-full sm:w-[190px]">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full bg-white border border-gray-300 rounded-[12px] px-4 py-3 text-[14px] font-semibold text-gray-700 outline-none focus:ring-2 focus:ring-[#2A60A4] shadow-sm cursor-pointer"
+              >
+                <option value="nim_asc">NIM (Terendah)</option>
+                <option value="nim_desc">NIM (Tertinggi)</option>
+                <option value="nama">Nama (A - Z)</option>
+                <option value="prodi">Program Studi</option>
+              </select>
+            </div>
+
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <button className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full md:w-auto">
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <button className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto">
               <FileUp size={18} strokeWidth={2.5} />
               Import Data
             </button>
             <button 
               onClick={openAddModal}
-              className="flex items-center justify-center gap-2 bg-[#2A60A4] text-white px-5 py-3 rounded-[12px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[14px] w-full md:w-auto"
+              className="flex items-center justify-center gap-2 bg-[#2A60A4] text-white px-5 py-3 rounded-[12px] hover:bg-[#1f4b82] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto"
             >
               <Plus size={18} strokeWidth={2.5} />
               Tambah Mahasiswa
             </button>
           </div>
-
         </div>
 
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">
@@ -128,7 +363,7 @@ export default function DataMahasiswa() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-[#E2E4E8] text-black text-[14px] border-b-[1.5px] border-gray-400">
-                  <th className="px-6 py-4 font-semibold w-[15%]">NIM</th>
+                  <th className="px-6 py-4 font-semibold w-[15%]">NIM / Email</th>
                   <th className="px-6 py-4 font-semibold w-[27%]">Nama Mahasiswa</th>
                   <th className="px-6 py-4 font-semibold w-[20%]">Program Studi</th>
                   <th className="px-6 py-4 font-semibold w-[15%] text-center">Jenis Mahasiswa</th>
@@ -138,31 +373,38 @@ export default function DataMahasiswa() {
                 </tr>
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
-                {filteredMhs.length > 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="7" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Memuat data...
+                    </td>
+                  </tr>
+                ) : filteredMhs.length > 0 ? (
                   filteredMhs.map((item) => (
                     <tr key={item.id} className="bg-[#F4F5F7] hover:bg-[#EAECEF] transition-colors">
                       <td className="px-6 py-4">
-                        <div className="text-[14px] font-bold text-[#2A60A4]">{item.nim}</div>
+                        <div className="text-[14px] font-bold text-[#2A60A4]">{item.nim || item.id}</div>
+                        <div className="text-[12px] font-medium text-gray-500">{item.email}</div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-[14px] font-medium text-black">{item.nama}</div>
+                        <div className="text-[14px] font-medium text-black">{item.nama || item.name}</div>
                       </td>
                       <td className="px-6 py-4 text-[14px] text-gray-700">
-                        {item.prodi}
+                        {item.prodi || '-'}
                       </td>
                       <td className="px-6 py-4 text-[14px] text-gray-700 text-center font-medium">
-                        {item.jenis_mhs}
+                        {item.jenis_mhs || '-'}
                       </td>
                       <td className="px-6 py-4 text-[14px] text-gray-700 text-center font-medium">
-                        {item.angkatan}
+                        {item.angkatan || '-'}
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className={`px-4 py-1 text-[12px] font-bold rounded-full border ${
-                          item.status === 'Aktif' 
+                          (item.status || 'Aktif') === 'Aktif' 
                             ? 'border-[#429961] text-[#429961] bg-[#E8F5EB]' 
                             : 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]'
                         }`}>
-                          {item.status}
+                          {item.status || 'Aktif'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -187,8 +429,8 @@ export default function DataMahasiswa() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500 font-medium">
-                      Tidak ditemukan data mahasiswa yang cocok.
+                    <td colSpan="7" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Belum ada data mahasiswa.
                     </td>
                   </tr>
                 )}
@@ -199,7 +441,6 @@ export default function DataMahasiswa() {
 
       </main>
 
-      {/* Panggil Modal Mahasiswa */}
       <ModalMahasiswa 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -208,13 +449,26 @@ export default function DataMahasiswa() {
         initialData={selectedMhs}
       />
 
-      {/* Panggil Modal Konfirmasi Hapus */}
       <ConfirmModal 
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         message="Apakah anda yakin ingin menghapus data mahasiswa ini?"
         type="danger"
+      />
+
+      <ConfirmModal 
+        isOpen={popupModal.isOpen}
+        onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={popupModal.onConfirm ? () => {
+          const action = popupModal.onConfirm;
+          setPopupModal(prev => ({ ...prev, isOpen: false }));
+          action();
+        } : null}
+        message={popupModal.message}
+        type={popupModal.type}
+        showCancel={popupModal.showCancel}
+        confirmText={popupModal.confirmText}
       />
 
     </div>

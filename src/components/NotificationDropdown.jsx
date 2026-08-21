@@ -1,20 +1,138 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, FileText, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import dummyData from '../data/dummy.json';
 
-// Tambahkan parameter "role" dengan nilai bawaan "admin"
 export default function NotificationDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Mengambil data notifikasi dari JSON ke dalam state
-  const [notifications, setNotifications] = useState(dummyData.notifikasi || []);
+  // State untuk menyimpan notifikasi asli dari Backend API
+  const [notifications, setNotifications] = useState([]);
 
-  // Menghitung jumlah notifikasi yang belum dibaca
+  // Ambil UID dari cache agar sinkron dan spesifik per orang
+  const [uId, setUid] = useState(() => {
+    const cached = localStorage.getItem('cached_user_data');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      return parsed.id || parsed.email || (role === 'admin' ? 'admin_user' : 'guest');
+    }
+    return role === 'admin' ? 'admin_user' : 'guest';
+  });
+
+  // Helper mengambil ID notifikasi yang dibaca dari LocalStorage
+  const getReadNotifIds = (userId) => {
+    try {
+      const saved = localStorage.getItem(`read_notifs_${userId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // Helper waktu relatif (cth: "2 jam lalu")
+  const getRelativeTime = (dateString) => {
+    if (!dateString) return 'Baru saja';
+    const diffMs = new Date() - new Date(dateString);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMinutes < 1) return 'Baru saja';
+    if (diffMinutes < 60) return `${diffMinutes} menit lalu`;
+    if (diffHours < 24) return `${diffHours} jam lalu`;
+    if (diffDays === 1) return 'Kemarin';
+    return `${diffDays} hari lalu`;
+  };
+
+  // Tarik data notifikasi dari Backend berdasarkan Role
+  const loadNotifications = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      // Bedakan endpoint yang ditembak berdasarkan role
+      const endpoint = role === 'admin' 
+        ? 'http://localhost:8000/api/admin/surat' 
+        : 'http://localhost:8000/api/mahasiswa/surat';
+
+      const response = await fetch(endpoint, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const arraySurat = Array.isArray(data) ? data : (data.data || []);
+        
+        const readIds = getReadNotifIds(uId);
+
+        // Format data mentah dari backend menjadi bentuk notifikasi
+        const formatted = arraySurat.map(surat => {
+          const notifId = `${role}_surat_${surat.id}_${surat.status}`;
+          const jenisSurat = surat.jenis_surat || surat.judul_surat || 'Surat Pengantar';
+          const mhsName = surat.user?.name || 'Mahasiswa';
+          const timeStr = getRelativeTime(surat.created_at || surat.updated_at);
+          const isRead = readIds.includes(notifId);
+
+          let message = '';
+          let type = 'info';
+
+          // Logika Pesan Khusus ADMIN
+          if (role === 'admin') {
+            if (surat.status === 'Pending') {
+              message = `${mhsName} baru saja mengajukan ${jenisSurat}.`;
+              type = 'pengajuan';
+            } else if (surat.status === 'Diproses') {
+              message = `${jenisSurat} dari ${mhsName} sedang dalam proses.`;
+            } else if (surat.status === 'Selesai') {
+              message = `Pemrosesan ${jenisSurat} untuk ${mhsName} selesai.`;
+            } else {
+              message = `Pengajuan ${jenisSurat} milik ${mhsName} telah ditolak.`;
+            }
+          } 
+          // Logika Pesan Khusus MAHASISWA
+          else {
+            if (surat.status === 'Selesai') {
+              message = `Hore! Pengajuan ${jenisSurat} Anda telah selesai diproses!`;
+            } else if (surat.status === 'Ditolak') {
+              message = `Mohon maaf, pengajuan ${jenisSurat} Anda ditolak.`;
+            } else if (surat.status === 'Diproses') {
+              message = `Pengajuan ${jenisSurat} Anda sedang dikerjakan oleh Admin.`;
+            } else {
+              message = `Pengajuan ${jenisSurat} Anda berhasil dikirim ke Admin.`;
+              type = 'pengajuan';
+            }
+          }
+
+          return {
+            id: notifId,
+            message,
+            time: timeStr,
+            isRead,
+            type,
+            timestamp: new Date(surat.created_at || surat.updated_at).getTime()
+          };
+        });
+
+        // Urutkan notifikasi dari yang paling baru
+        formatted.sort((a, b) => b.timestamp - a.timestamp);
+
+        setNotifications(formatted);
+      }
+    } catch (error) {
+      console.error("Gagal memuat notifikasi:", error);
+    }
+  };
+
+  // Muat notifikasi saat komponen pertama kali dirender
+  useEffect(() => {
+    loadNotifications();
+  }, [role, uId]);
+
   const unreadCount = notifications.filter(notif => !notif.isRead).length;
 
-  // Fungsi untuk menutup dropdown kalau user klik di luar kotak
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -25,42 +143,23 @@ export default function NotificationDropdown({ role = 'admin' }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fungsi menandai semua sudah dibaca
+  // Fungsi menandai semua sudah dibaca & menyimpannya ke LocalStorage khusus UID ini
   const markAllAsRead = () => {
+    const allIds = notifications.map(n => n.id);
+    localStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
   };
 
-  // Menentukan arah rute halaman Settings berdasarkan role
-  const settingPath = role === 'mahasiswa' ? '/user/setting' : '/ad/setting';
+  const settingPath = role === 'mahasiswa' ? '/mhs/setting' : '/ad/setting';
 
-  // Fungsi pembantu untuk merender teks pesan agar fleksibel
   const renderMessageText = (notif) => {
-    // Jika format pesannya adalah pengajuan (khusus Admin)
-    if (notif.message.includes('mengajukan Surat')) {
-      const parts = notif.message.split('mengajukan Surat');
-      return (
-        <>
-          <span className={`font-semibold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
-            {parts[0]}
-          </span>
-          <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
-            mengajukan Surat{' '}
-          </span>
-          <span className={`font-bold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
-            {notif.time}.
-          </span>
-        </>
-      );
-    }
-
-    // Format default untuk notifikasi lainnya (Sistem / Mahasiswa)
     return (
       <>
-        <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800'}>
+        <span className={notif.isRead ? 'text-gray-700' : 'text-gray-800 font-semibold'}>
           {notif.message}{' '}
         </span>
-        <span className={`font-bold ${notif.isRead ? 'text-gray-800' : 'text-black'}`}>
-          {notif.time}.
+        <span className={`block mt-1 text-[12px] font-bold ${notif.isRead ? 'text-gray-500' : 'text-[#3470B9]'}`}>
+          {notif.time}
         </span>
       </>
     );
@@ -140,7 +239,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
                 state={{ activeTab: 'notifikasi' }} 
                 className="text-[#3470B9] text-[14.5px] font-medium hover:underline"
             >
-                Lihat Semuanya
+                Lihat Semua Riwayat
             </Link>
            </div>
 

@@ -27,13 +27,17 @@ export default function ConfirmModal({
   let iconColor = 'text-[#2A60A4]';
   let btnColor = 'bg-[#2A60A4] hover:bg-[#1f4b82]';
 
-  const isDanger = type === 'danger' || type === 'delete';
-  
-  if (isDanger) {
+  const isDanger = type === 'danger'; // Tipe 'danger' pakai tanda seru
+  const isDelete = type === 'delete'; // Tipe 'delete' pakai tempat sampah
+
+  if (isDelete) {
     IconComponent = Trash2;
     iconColor = 'text-[#C92A2A]';
     btnColor = 'bg-[#C92A2A] hover:bg-[#b02525]';
-  } else if (type === 'error') {
+  } else if (isDanger || type === 'error') {
+    IconComponent = AlertTriangle; // Tanda seru untuk error/gagal
+    iconColor = 'text-[#C92A2A]';
+    btnColor = 'bg-[#C92A2A] hover:bg-[#b02525]';
     IconComponent = XCircle;
     iconColor = 'text-[#C92A2A]';
     btnColor = 'bg-[#C92A2A] hover:bg-[#b02525]';
@@ -68,7 +72,7 @@ export default function ConfirmModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm transition-opacity p-4">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-transparent backdrop-blur-sm transition-opacity p-4">
       
       {/* Box Modal */}
       <div className="bg-[#F6F6F6] border border-gray-300 w-full max-w-[500px] rounded-[12px] shadow-2xl p-8 animate-fade-in-up text-center relative z-10">
@@ -124,4 +128,4 @@ export default function ConfirmModal({
       `}} />
     </div>
   );
-}
+}

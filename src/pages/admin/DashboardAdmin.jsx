@@ -1,12 +1,68 @@
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, File, Clock, CheckCircle2, Users } from 'lucide-react';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
-import dummyData from '../../data/dummy.json';
 
 export default function DashboardAdmin() {
-  const { statistik, pengajuanTerbaru } = dummyData;
+  // State untuk menyimpan data statistik real dari database
+  const [stats, setStats] = useState({
+    totalPengajuan: 0,
+    butuhDiproses: 0,
+    suratSelesai: 0,
+    totalMahasiswa: 0
+  });
+
+  // State untuk menyimpan daftar pengajuan terbaru real dari database
+  const [pengajuanTerbaru, setPengajuanTerbaru] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Mengambil data dari backend saat halaman dimuat
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/admin/dashboard-stats', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        // Mengisi state statistik dari database
+        setStats({
+          totalPengajuan: data.stats.total_pengajuan,
+          butuhDiproses: data.stats.butuh_diproses,
+          suratSelesai: data.stats.surat_selesai,
+          totalMahasiswa: data.stats.total_mahasiswa
+        });
+
+        // Memformat data pengajuan terbaru agar sesuai dengan struktur tabel
+        const formattedLatest = (data.terbaru || []).map(item => ({
+          id: item.id,
+          nama: item.user?.name || 'Mahasiswa',
+          nim: item.user?.nim || '-',
+          jenis: item.jenis_surat,
+          tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          }),
+          status: item.status
+        }));
+
+        setPengajuanTerbaru(formattedLatest);
+      }
+    } catch (error) {
+      console.error("Gagal memuat data dashboard:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-putih font-sans">
@@ -25,7 +81,9 @@ export default function DashboardAdmin() {
                 <NotificationDropdown />
                 <ProfileDropdown />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">06 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
@@ -35,7 +93,7 @@ export default function DashboardAdmin() {
           <p className="text-[20px] text-white font-light tracking-wide">Berikut adalah ringkasan aktivitas administrasi surat hari ini.</p>
         </div>
 
-        {/* 4 Kartu Statistik (Datanya diambil dari JSON) */}
+        {/* 4 Kartu Statistik (Real Data) */}
         <div className="grid grid-cols-4 gap-6 mb-8">
           <div className="bg-[#F8F9FA] p-6 rounded-[16px] border-[1.5px] border-gray-300 shadow-[0_8px_15px_rgb(0,0,0,0.05)] flex items-center gap-5">
             <div className="w-[52px] h-[52px] rounded-[12px] bg-[#D6E4F0] flex items-center justify-center text-[#5584B0]">
@@ -43,7 +101,7 @@ export default function DashboardAdmin() {
             </div>
             <div>
               <p className="text-[13px] font-semibold text-gray-800">Total Pengajuan</p>
-              <p className="text-[28px] font-bold text-black leading-none mt-1">{statistik.totalPengajuan}</p>
+              <p className="text-[28px] font-bold text-black leading-none mt-1">{isLoading ? '...' : stats.totalPengajuan}</p>
             </div>
           </div>
 
@@ -53,7 +111,7 @@ export default function DashboardAdmin() {
             </div>
             <div>
               <p className="text-[13px] font-semibold text-gray-800">Butuh Diproses</p>
-              <p className="text-[28px] font-bold text-black leading-none mt-1">{statistik.butuhDiproses}</p>
+              <p className="text-[28px] font-bold text-black leading-none mt-1">{isLoading ? '...' : stats.butuhDiproses}</p>
             </div>
           </div>
 
@@ -63,7 +121,7 @@ export default function DashboardAdmin() {
             </div>
             <div>
               <p className="text-[13px] font-semibold text-gray-800">Surat Selesai</p>
-              <p className="text-[28px] font-bold text-black leading-none mt-1">{statistik.suratSelesai}</p>
+              <p className="text-[28px] font-bold text-black leading-none mt-1">{isLoading ? '...' : stats.suratSelesai}</p>
             </div>
           </div>
 
@@ -73,16 +131,16 @@ export default function DashboardAdmin() {
             </div>
             <div>
               <p className="text-[13px] font-semibold text-gray-800">Total Mahasiswa</p>
-              <p className="text-[28px] font-bold text-black leading-none mt-1">{statistik.totalMahasiswa}</p>
+              <p className="text-[28px] font-bold text-black leading-none mt-1">{isLoading ? '...' : stats.totalMahasiswa}</p>
             </div>
           </div>
         </div>
 
-        {/* Tabel Pengajuan Terbaru */}
+        {/* Tabel Pengajuan Terbaru (Real Data) */}
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">
           <div className="px-6 py-4 flex justify-between items-center border-b-[1.5px] border-gray-400">
             <h4 className="text-[17px] font-medium text-gray-800">Pengajuan Terbaru</h4>
-            <Link href="ad/pengajuan" className="text-[15px] font-medium text-[#2A60A4] hover:underline">Lihat Semua</Link>
+            <Link to="/ad/pengajuan" className="text-[15px] font-medium text-[#2A60A4] hover:underline">Lihat Semua</Link>
           </div>
           
           <div className="overflow-x-auto">
@@ -98,36 +156,45 @@ export default function DashboardAdmin() {
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
                 
-                {/* Looping data JSON ke dalam baris tabel */}
-                {pengajuanTerbaru.map((item) => (
-                  <tr key={item.id} className="bg-[#F4F5F7]">
-                    <td className="px-6 py-4">
-                      <div className="text-[14px] font-medium text-black">{item.nama}</div>
-                      <div className="text-[13px] text-black mt-0.5">{item.nim}</div>
-                    </td>
-                    <td className="px-6 py-4 text-[14px] text-black">{item.jenis}</td>
-                    <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-5 py-1 text-[13px] font-medium rounded-full border ${
-                        item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
-                        item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :
-                        item.status === 'Ditolak' ? 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]' :
-                        'border-[#429961] text-[#429961] bg-[#E8F5EB]' // Selesai
-                      }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {(item.status === 'Pending' || item.status === 'Diproses') ? (
-                        <Link to={`/ad/pengajuan/${item.id}`} className="inline-block bg-[#2A60A4] text-white text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-[#1f4b82] transition-colors shadow-sm">
-                          Lihat Detail
-                        </Link>
-                      ) : (
-                        <span className="text-[13px] font-medium text-gray-400 italic">{item.status}</span>
-                      )}
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Memuat data...
                     </td>
                   </tr>
-                ))}
+                ) : pengajuanTerbaru.length > 0 ? (
+                  pengajuanTerbaru.map((item) => (
+                    <tr key={item.id} className="bg-[#F4F5F7]">
+                      <td className="px-6 py-4">
+                        <div className="text-[14px] font-medium text-black">{item.nama}</div>
+                        <div className="text-[13px] text-black mt-0.5">{item.nim}</div>
+                      </td>
+                      <td className="px-6 py-4 text-[14px] text-black">{item.jenis}</td>
+                      <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-5 py-1 text-[13px] font-medium rounded-full border ${
+                          item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
+                          item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :
+                          item.status === 'Ditolak' ? 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]' :
+                          'border-[#429961] text-[#429961] bg-[#E8F5EB]' 
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Link to="/ad/pengajuan" className="inline-block bg-[#2A60A4] text-white text-[13px] font-medium px-4 py-2 rounded-lg hover:bg-[#1f4b82] transition-colors shadow-sm">
+                          Lihat Detail
+                        </Link>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 italic">
+                      Belum ada pengajuan surat masuk.
+                    </td>
+                  </tr>
+                )}
                 
               </tbody>
             </table>

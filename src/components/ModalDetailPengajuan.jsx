@@ -5,7 +5,28 @@ import ConfirmModal from './ConfirmModal';
 export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateStatus }) {
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
 
+  // Jika modal tidak aktif atau data belum ada, jangan render apa pun
   if (!isOpen || !data) return null;
+
+  /**
+   * Fungsi helper untuk memisahkan Nama Asli File dan Path Penyimpanan
+   * Berdasarkan format yang dikirim dari Backend: "NamaAsli.pdf|lampiran_mahasiswa/file.pdf"
+   */
+  const getFileInfo = (lampiran) => {
+    if (!lampiran) return null;
+    
+    // Jika mengandung pemisah '|', berarti menggunakan format baru (Nama Asli | Path)
+    if (lampiran.includes('|')) {
+      const [name, path] = lampiran.split('|');
+      return { name, path };
+    }
+    
+    // Fallback untuk data lama di database (hanya berupa path atau nama acak)
+    return { name: lampiran.split('/').pop(), path: lampiran };
+  };
+
+  // Mendapatkan objek informasi file (nama asli dan path)
+  const fileInfo = getFileInfo(data.lampiran);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-30 backdrop-blur-sm transition-opacity p-4">
@@ -43,30 +64,44 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
 
           <div className="mb-6">
             <p className="text-[13px] font-semibold text-gray-500 mb-2">Keperluan / Keterangan</p>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-[14.5px] text-gray-700 leading-relaxed">
-              Pengajuan surat ini diperuntukkan untuk melengkapi dokumen persyaratan administrasi mahasiswa yang bersangkutan. (Contoh detail keperluan dari database)
+            {/* Menampilkan teks keperluan / keterangan asli dari database */}
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-[14.5px] text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {data.keperluan || 'Tidak ada keterangan tambahan dari mahasiswa.'}
             </div>
           </div>
 
           <div>
             <p className="text-[13px] font-semibold text-gray-500 mb-2">Lampiran Berkas (Dari Mahasiswa)</p>
-            <div className="flex items-center justify-between bg-blue-50 border border-blue-100 p-4 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white rounded-md text-[#2A60A4] shadow-sm">
-                  <FileText size={20} />
+            
+            {/* Pengecekan apakah ada file lampiran yang diunggah */}
+            {fileInfo ? (
+              <div className="flex items-center justify-between bg-blue-50 border border-blue-100 p-4 rounded-lg">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="p-2 bg-white rounded-md text-[#2A60A4] shadow-sm flex-shrink-0">
+                    <FileText size={20} />
+                  </div>
+                  <div className="min-w-0">
+                    {/* Menampilkan NAMA ASLI file yang diunggah mahasiswa (dipisah dari path penyimpanannya) */}
+                    <p className="text-[14px] font-bold text-[#182D4A] truncate" title={fileInfo.name}>
+                      {fileInfo.name}
+                    </p>
+                    <p className="text-[12px] text-gray-500">Berkas Terlampir</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[14px] font-bold text-[#182D4A]">berkas_persyaratan_{data.nim}.pdf</p>
-                  <p className="text-[12px] text-gray-500">1.2 MB</p>
-                </div>
+                
+                {/* Tombol Unduh: Mengarahkan ke URL storage backend menggunakan path asli file fisik */}
+                <button 
+                  onClick={() => window.open(`http://localhost:8000/storage/${fileInfo.path}`, '_blank')}
+                  className="flex items-center gap-2 text-[13px] font-bold text-[#2A60A4] hover:bg-white px-3 py-1.5 rounded-md transition-colors border border-transparent hover:border-blue-200 flex-shrink-0"
+                >
+                  <Download size={16} /> Unduh
+                </button>
               </div>
-              <button 
-                onClick={() => setDownloadModalOpen(true)}
-                className="flex items-center gap-2 text-[13px] font-bold text-[#2A60A4] hover:bg-white px-3 py-1.5 rounded-md transition-colors border border-transparent hover:border-blue-200"
-              >
-                <Download size={16} /> Unduh
-              </button>
-            </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">
+                <p className="text-[14px] text-gray-500 italic">Mahasiswa tidak menyertakan lampiran berkas.</p>
+              </div>
+            )}
           </div>
 
         </div>
@@ -92,7 +127,6 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
           </span>
 
           <div className="flex gap-3">
-            {/* Tampilkan aksi jika properti onUpdateStatus diberikan (Bisa disembunyikan di dashboard jika hanya view) */}
             {onUpdateStatus && (
               <>
                 {(data.status === 'Pending' || data.status === 'Diterima') && (

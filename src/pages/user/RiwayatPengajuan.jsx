@@ -1,16 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import ConfirmModal from '../../components/ConfirmModal';
-import dummyData from '../../data/dummy.json';
 import { Search, Download, Info } from 'lucide-react';
 
 export default function RiwayatPengajuan() {
-  // Ambil data riwayat dari JSON, fallback ke array kosong kalau belum ada
-  const [riwayat, setRiwayat] = useState(dummyData.riwayatMahasiswa || []);
+  // State untuk menyimpan data riwayat dari database
+  const [riwayat, setRiwayat] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- TARIK DATA REAL DARI DATABASE ---
+  useEffect(() => {
+    const fetchRiwayat = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/mahasiswa/surat', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          const arrayData = Array.isArray(data) ? data : (data.data || []);
+          
+          // Format data dari backend ke bentuk yang dimengerti tabel frontend
+          const formattedData = arrayData.map(item => ({
+            id: item.id,
+            jenis: item.jenis_surat || 'Surat Pengantar',
+            tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            // REVISI: Mengambil status apa adanya dari database (Pending, Diproses, Selesai, Ditolak)
+            status: item.status || 'Pending',
+            keterangan: item.keterangan_admin || (
+              item.status === 'Ditolak' ? 'Pengajuan ditolak oleh admin.' : 
+              item.status === 'Selesai' ? 'Surat telah selesai dan siap diunduh.' : 
+              'Menunggu peninjauan admin.'
+            )
+          }));
+          
+          setRiwayat(formattedData);
+        }
+      } catch (error) {
+        console.error("Error fetching riwayat:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchRiwayat();
+  }, []);
 
   // State untuk Popup Download Modal
   const [downloadModal, setDownloadModal] = useState({
@@ -55,7 +103,9 @@ export default function RiwayatPengajuan() {
               <NotificationDropdown role="mahasiswa" />
               <ProfileDropdown role="mahasiswa" />
             </div>
-            <span className="text-gray-700 font-medium text-[15px]">10 Agustus 2026</span>
+            <span className="text-gray-700 font-medium text-[15px]">
+              {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
           </div>
         </header>
 
@@ -87,11 +137,17 @@ export default function RiwayatPengajuan() {
                 </tr>
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
-                {filteredRiwayat.length > 0 ? (
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
+                      Memuat data...
+                    </td>
+                  </tr>
+                ) : filteredRiwayat.length > 0 ? (
                   filteredRiwayat.map((item) => (
                     <tr key={item.id} className="bg-[#F4F5F7] hover:bg-[#EAECEF] transition-colors">
                       <td className="px-6 py-5">
-                        <span className="font-bold text-[#2A60A4]">{item.id}</span>
+                        <span className="font-bold text-[#2A60A4]">TKT-{item.id}</span>
                       </td>
                       <td className="px-6 py-5">
                         <div className="text-[15px] font-semibold text-gray-800">{item.jenis}</div>
@@ -111,11 +167,11 @@ export default function RiwayatPengajuan() {
                             {item.status.toUpperCase()}
                           </span>
                           
-                          {/* Keterangan tambahan (alasan ditolak / posisi surat) */}
+                          {/* Keterangan tambahan */}
                           <div className="flex items-start gap-1.5 mt-1 text-gray-500">
                             <Info size={14} className="mt-0.5 flex-shrink-0" />
                             <span className="text-[12px] leading-tight max-w-[200px]">
-                              {item.keterangan || 'Tidak ada keterangan tambahan.'}
+                              {item.keterangan}
                             </span>
                           </div>
                         </div>
@@ -149,7 +205,7 @@ export default function RiwayatPengajuan() {
                 ) : (
                   <tr>
                     <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
-                      Tidak ada riwayat pengajuan surat yang cocok dengan pencarian "{searchTerm}".
+                      {searchTerm ? `Tidak ada riwayat yang cocok dengan pencarian "${searchTerm}".` : "Belum ada riwayat pengajuan surat."}
                     </td>
                   </tr>
                 )}

@@ -45,7 +45,7 @@ export default function Sidebar({ activeMenu, role = 'admin' }) {
       
       {/* Header / Logo */}
       <div className="pt-12 pb-8 px-10 flex justify-center">
-        <h1 className="text-[24px] font-bold tracking-wide text-putih">E-Surat App</h1>
+        <h1 className="text-[24px] font-bold tracking-wide text-putih">Letterly</h1>
       </div>
       
       {/* Navigasi Menu */}
