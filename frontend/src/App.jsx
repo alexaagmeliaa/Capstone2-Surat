@@ -16,7 +16,6 @@ function App() {
       <Routes>
         {/* Auth */}
         <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
         
         {/* User */}
         <Route path="/mhs/dashboard" element={<DashboardMhs />} />
