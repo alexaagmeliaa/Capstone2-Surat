@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::table('surats', function (Blueprint $table) {
             // Menambahkan kolom alasan penolakan jika ditolak
-            $table->text('alasan_penolakan')->nullable();
+            if (!Schema::hasColumn('surats', 'alasan_penolakan')) {
+                $table->text('alasan_penolakan')->nullable();
+            }
             
             // Menambahkan kolom file hasil jika belum ada
-            $table->string('file_hasil')->nullable();
+            if (!Schema::hasColumn('surats', 'file_hasil')) {
+                $table->string('file_hasil')->nullable();
+            }
         });
     }
 

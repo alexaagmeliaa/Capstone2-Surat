@@ -15,16 +15,27 @@ class SuratController extends Controller
     public function ajukan(Request $request)
     {
         $request->validate([
-            'judul_surat' => 'required|string|max:255',
+            'jenis_surat' => 'required|string|max:255',
             'keperluan' => 'required|string',
             'tujuan_surat' => 'required|string', 
+            'lampiran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
+
+        $lampiranValue = null;
+        if ($request->hasFile('lampiran')) {
+            $file = $request->file('lampiran');
+            $originalName = $file->getClientOriginalName();
+            $path = $file->store('lampiran_mahasiswa', 'public');
+            $lampiranValue = $originalName . '|' . $path;
+        }
 
         $surat = Surat::create([
             'user_id' => Auth::id(),
-            'judul_surat' => $request->judul_surat,
+            'jenis_surat' => $request->jenis_surat,
+            'judul_surat' => $request->jenis_surat, // Set judul_surat to match jenis_surat
             'keperluan' => $request->keperluan,
             'tujuan_surat' => $request->tujuan_surat,
+            'lampiran' => $lampiranValue,
             'status' => 'Pending',
             'tanggal_pengajuan' => now(), 
         ]);

@@ -15,9 +15,11 @@ class Surat extends Model
         'judul_surat', 
         'jenis_surat',
         'keperluan', 
+        'tujuan_surat',
         'lampiran',
         'status',
         'file_surat',
+        'file_hasil',
         'keterangan_admin',
         'tanggal_pengajuan',
         'alasan_penolakan'

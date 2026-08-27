@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import bgImage from '/assets/bg/bg.png';
 
 // Icon Email Sesuai Desain (Garis Biru)
 const MailIcon = () => (
@@ -27,11 +26,10 @@ export default function Login() {
 
   // Fungsi saat tombol Log In diklik (SUDAH TERHUBUNG KE BACKEND)
   const handleLogin = async (e) => {
-    e.preventDefault(); // Mencegah form untuk me-refresh halaman
-    setErrorMsg(''); // Kosongkan error sebelumnya
+    e.preventDefault(); 
+    setErrorMsg(''); 
 
     try {
-      // 1. Tembak API Login di Backend
       const response = await fetch('http://localhost:8000/api/login', {
         method: 'POST',
         headers: {
@@ -46,23 +44,19 @@ export default function Login() {
 
       const data = await response.json();
 
-      // 2. Cek apakah login sukses
       if (response.ok) {
-        // SIMPAN TOKEN & ROLE KE SESSION STORAGE (TERISOLASI PER TAB)
+        // SIMPAN TOKEN & ROLE KE SESSION STORAGE
         sessionStorage.setItem('token', data.access_token);
         
-        // Mengambil role secara fleksibel dari respons backend
         const userRole = data.role || (data.user && data.user.role); 
         sessionStorage.setItem('role', userRole); 
         
-        // Cek role untuk mengarahkan ke halaman yang benar
         if (userRole === 'admin') {
           navigate('/ad/dashboard'); 
         } else {
           navigate('/mhs/dashboard'); 
         }
       } else {
-        // Kalau password/email salah, tampilkan pesan dari backend
         setErrorMsg(data.pesan || data.message || 'Email atau password tidak cocok!');
       }
     } catch (error) {
@@ -72,16 +66,45 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900 overflow-hidden relative p-4">
+    <div className="min-h-screen flex items-center justify-center bg-putih overflow-hidden relative p-4">
       
-      {/* Background Blur Image */}
-      <div
-        className="absolute inset-0 z-0 bg-cover bg-center blur-sm opacity-50"
-        style={{ backgroundImage: `url(${bgImage})` }}
-      />
+      {/* Background SVG Doodle Surat yang Seamless (Berulang) */}
+      <div className="absolute inset-0 z-0 opacity-[0.35]">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="surat-doodle" x="0" y="0" width="140" height="140" patternUnits="userSpaceOnUse">
+              
+              {/* Doodle Amplop Tertutup */}
+              <g transform="translate(20, 30) rotate(-15)">
+                <rect x="0" y="0" width="32" height="20" rx="2" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M0 0l16 12 16-12" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </g>
 
-      {/* Login Card (dengan efek border 3D ala desain) */}
-      <div className="bg-white rounded-[24px] p-10 md:p-12 w-full max-w-[500px] z-10 relative border border-gray-200 border-r-[6px] border-b-[6px] border-r-[#D1D5DB] border-b-[#D1D5DB]">
+              {/* Doodle Pesawat Kertas */}
+              <g transform="translate(85, 70) rotate(15)">
+                <path d="M0 16l24-12-6 24-5-10-9-4z" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M24 4l-11 12" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+              </g>
+
+              {/* Doodle Kertas Dokumen */}
+              <g transform="translate(25, 100) rotate(10)">
+                <rect x="0" y="0" width="22" height="28" rx="2" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M6 8h10M6 14h10M6 20h6" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+              </g>
+
+              {/* Elemen Coretan Pelengkap (Bintang/Garis Kecil) */}
+              <path d="M100 20v6m-3-3h6" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M50 75v4m-2-2h4" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round"/>
+              <path d="M120 120a4 4 0 100-8 4 4 0 000 8z" fill="none" stroke="#94A3B8" strokeWidth="2"/>
+            
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#surat-doodle)" />
+        </svg>
+      </div>
+
+      {/* Login Card (dengan efek border 3D yang sangat pas dengan tema bg putih) */}
+      <div className="bg-white rounded-[24px] p-10 md:p-12 w-full max-w-[500px] z-10 relative border border-gray-200 border-r-[6px] border-b-[6px] border-r-[#D1D5DB] border-b-[#D1D5DB] shadow-sm">
         
         {/* Header Title */}
         <div className="mb-10 text-center md:text-left">
@@ -93,7 +116,7 @@ export default function Login() {
           </p>
         </div>
 
-        {/* Pesan Error (Muncul jika salah masukin sandi) */}
+        {/* Pesan Error */}
         {errorMsg && (
           <div className="mb-4 p-3 rounded-lg bg-red-100 border border-red-400 text-red-700 text-sm font-semibold text-center">
             {errorMsg}
@@ -104,7 +127,7 @@ export default function Login() {
           
           {/* Input Email ID */}
           <div className="flex items-stretch border-2 border-[#3169B3] rounded-xl overflow-hidden bg-transparent">
-            <div className="px-5 py-3 border-r-2 border-[#3169B3] flex items-center justify-center">
+            <div className="px-5 py-3 border-r-2 border-[#3169B3] flex items-center justify-center bg-white">
               <MailIcon />
             </div>
             <input
@@ -113,14 +136,14 @@ export default function Login() {
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="Email ID"
-              className="flex-grow px-5 py-3 text-xl text-[#3169B3] placeholder:text-[#3169B3] outline-none bg-transparent font-medium"
+              className="flex-grow px-5 py-3 text-xl text-[#3169B3] placeholder:text-[#3169B3] outline-none bg-white font-medium"
             />
           </div>
 
           {/* Input Password */}
           <div>
             <div className="flex items-stretch border-2 border-[#3169B3] rounded-xl overflow-hidden bg-transparent">
-              <div className="px-5 py-3 border-r-2 border-[#3169B3] flex items-center justify-center">
+              <div className="px-5 py-3 border-r-2 border-[#3169B3] flex items-center justify-center bg-white">
                 <LockIcon />
               </div>
               <input
@@ -129,7 +152,7 @@ export default function Login() {
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Password"
-                className="flex-grow px-5 py-3 text-xl text-[#3169B3] placeholder:text-[#3169B3] outline-none bg-transparent font-medium"
+                className="flex-grow px-5 py-3 text-xl text-[#3169B3] placeholder:text-[#3169B3] outline-none bg-white font-medium"
               />
             </div>
             

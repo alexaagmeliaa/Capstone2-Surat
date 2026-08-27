@@ -11,7 +11,7 @@ export default function AjukanSurat() {
   const [currentUser, setCurrentUser] = useState({ name: '', nim: '' }); 
   const [jenisSuratList, setJenisSuratList] = useState([]); 
   const [jenisSurat, setJenisSurat] = useState(''); 
-  const [tujuanSurat, setTujuanSurat] = useState(''); // STATE BARU: Untuk tujuan surat (Instansi/Perusahaan)
+  const [tujuanSurat, setTujuanSurat] = useState(''); 
   const [keperluan, setKeperluan] = useState(''); 
   const [fileName, setFileName] = useState(''); 
 
@@ -103,15 +103,20 @@ export default function AjukanSurat() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validasi form kosong termasuk tujuan surat
-    if (!jenisSurat || !tujuanSurat || !keperluan) {
-      showNotification("Harap lengkapi jenis surat, tujuan surat, dan keperluan!", "warning");
+    // PERBAIKAN: Hapus validasi !tujuanSurat agar form tetap bisa dikirim meski dikosongkan
+    if (!jenisSurat || !keperluan) {
+      showNotification("Harap lengkapi jenis surat dan keperluan pengajuan!", "warning");
       return;
     }
 
     const formData = new FormData();
     formData.append('jenis_surat', jenisSurat);
-    formData.append('tujuan_surat', tujuanSurat); // Kirim data tujuan surat ke backend
+    
+    // Hanya kirim tujuanSurat jika memang diisi oleh mahasiswa
+    if (tujuanSurat) {
+      formData.append('tujuan_surat', tujuanSurat); 
+    }
+    
     formData.append('keperluan', keperluan);
     
     const file = fileInputRef.current?.files[0];
@@ -134,7 +139,7 @@ export default function AjukanSurat() {
       if (response.ok) {
         showNotification(`Pengajuan "${jenisSurat}" berhasil dikirim ke Admin!\nSilakan pantau status surat di menu Riwayat.`, "success");
         setJenisSurat('');
-        setTujuanSurat(''); // Reset state tujuan surat
+        setTujuanSurat(''); 
         setKeperluan('');
         setFileName('');
         if (fileInputRef.current) {
@@ -180,7 +185,7 @@ export default function AjukanSurat() {
             <div>
               <h4 className="text-[#182D4A] font-bold text-[15px]">Informasi Penting</h4>
               <p className="text-[#2A60A4] text-[14px] mt-1">
-                Lampiran berkas bersifat <b>opsional</b>. Unggah dokumen pendukung jika jenis surat yang diajukan membutuhkan berkas persyaratan. Format yang didukung: <b>PDF, JPG, PNG</b> (Maks 2MB).
+                Kolom Instansi/Perusahaan dan Lampiran berkas bersifat <b>opsional</b>. Isi jika jenis surat yang diajukan memang ditujukan ke pihak luar atau membutuhkan berkas persyaratan.
               </p>
             </div>
           </div>
@@ -240,18 +245,17 @@ export default function AjukanSurat() {
                   </div>
                 </div>
 
-                {/* --- INPUT BARU: DITUJUKAN KEPADA (INSTANSI / PERUSAHAAN) --- */}
+                {/* --- INPUT INSTANSI / PERUSAHAAN (OPSIONAL) --- */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">
-                    Ditujukan Kepada (Instansi / Perusahaan / Instansi Tujuan) <span className="text-red-500">*</span>
+                    Ditujukan Kepada <span className="text-sm font-normal text-gray-500">(Opsional, isi jika diperlukan)</span>
                   </label>
                   <div className="relative">
                     <input 
                       type="text"
-                      required
                       value={tujuanSurat}
                       onChange={(e) => setTujuanSurat(e.target.value)}
-                      placeholder="Contoh: PT. Telkom Indonesia / Dinas Pendidikan Kota Bandung"
+                      placeholder="Contoh: PT. Telkom Indonesia / Dinas Pendidikan..."
                       className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-3 pl-11 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium transition-colors"
                     />
                     <div className="absolute left-3.5 top-3.5 text-gray-400">

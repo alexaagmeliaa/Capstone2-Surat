@@ -97,7 +97,7 @@ export default function DashboardAdmin() {
   const executeUpdateStatus = async (id, newStatus) => {
     try {
       const response = await fetch(`http://localhost:8000/api/admin/surat/${id}/status`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           // Autentikasi token admin via sessionStorage

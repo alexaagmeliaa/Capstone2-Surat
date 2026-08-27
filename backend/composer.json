@@ -81,6 +81,10 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
+        },
+        "platform": {
+            "ext-curl": "8.0.0",
+            "lib-curl": "8.0.0"
         }
     },
     "minimum-stability": "stable",

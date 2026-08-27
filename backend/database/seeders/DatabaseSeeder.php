@@ -124,27 +124,52 @@ class DatabaseSeeder extends Seeder
         // ==========================================
         $kat1 = KategoriSurat::firstOrCreate(
             ['nama_kategori' => 'Surat Keterangan Aktif Kuliah'],
-            ['deskripsi' => 'Surat permohonan keterangan mahasiswa aktif untuk keperluan beasiswa, tunjangan gaji orang tua, atau dinas.']
+            [
+                'kode_kategori' => 'SKAK',
+                'jenis_kategori' => 'Keterangan',
+                'deskripsi' => 'Surat permohonan keterangan mahasiswa aktif untuk keperluan beasiswa, tunjangan gaji orang tua, atau dinas.',
+                'status' => true
+            ]
         );
 
         $kat2 = KategoriSurat::firstOrCreate(
             ['nama_kategori' => 'Surat Pengantar Magang / PKL'],
-            ['deskripsi' => 'Surat permohonan pengantar dari kampus untuk instansi/perusahaan tempat pelaksanaan Magang atau Praktik Kerja Lapangan.']
+            [
+                'kode_kategori' => 'SPM',
+                'jenis_kategori' => 'Pengantar',
+                'deskripsi' => 'Surat permohonan pengantar dari kampus untuk instansi/perusahaan tempat pelaksanaan Magang atau Praktik Kerja Lapangan.',
+                'status' => true
+            ]
         );
 
         $kat3 = KategoriSurat::firstOrCreate(
             ['nama_kategori' => 'Surat Izin Penelitian Skripsi'],
-            ['deskripsi' => 'Surat permohonan izin pengambilan data / penelitian di instansi untuk keperluan Tugas Akhir atau Skripsi.']
+            [
+                'kode_kategori' => 'SIPS',
+                'jenis_kategori' => 'Izin',
+                'deskripsi' => 'Surat permohonan izin pengambilan data / penelitian di instansi untuk keperluan Tugas Akhir atau Skripsi.',
+                'status' => true
+            ]
         );
 
         $kat4 = KategoriSurat::firstOrCreate(
             ['nama_kategori' => 'Surat Keterangan Kelakuan Baik'],
-            ['deskripsi' => 'Surat keterangan dari pihak kampus yang menyatakan mahasiswa tidak pernah melakukan pelanggaran disiplin.']
+            [
+                'kode_kategori' => 'SKKB',
+                'jenis_kategori' => 'Keterangan',
+                'deskripsi' => 'Surat keterangan dari pihak kampus yang menyatakan mahasiswa tidak pernah melakukan pelanggaran disiplin.',
+                'status' => true
+            ]
         );
 
         $kat5 = KategoriSurat::firstOrCreate(
             ['nama_kategori' => 'Surat Cuti Akademik'],
-            ['deskripsi' => 'Surat permohonan izin penghentian studi sementara (cuti akademik) untuk semester berjalan.']
+            [
+                'kode_kategori' => 'SCA',
+                'jenis_kategori' => 'Permohonan',
+                'deskripsi' => 'Surat permohonan izin penghentian studi sementara (cuti akademik) untuk semester berjalan.',
+                'status' => true
+            ]
         );
 
 
@@ -157,6 +182,7 @@ class DatabaseSeeder extends Seeder
             [
                 'jenis_surat' => $kat1->nama_kategori,
                 'judul_surat' => $kat1->nama_kategori,
+                'tujuan_surat' => 'Kemendikbud Ristek RI',
                 'status' => 'Pending',
                 'lampiran' => 'lampiran_beasiswa_1224016.pdf',
                 'tanggal_pengajuan' => now()->subDays(2),
@@ -169,6 +195,7 @@ class DatabaseSeeder extends Seeder
             [
                 'jenis_surat' => $kat2->nama_kategori,
                 'judul_surat' => $kat2->nama_kategori,
+                'tujuan_surat' => 'PT Telekomunikasi Indonesia Tbk',
                 'status' => 'Diproses',
                 'lampiran' => 'proposal_pkl_3223017.pdf',
                 'keterangan_admin' => 'Surat sedang ditandatangani oleh Ketua Program Studi.',
@@ -182,9 +209,11 @@ class DatabaseSeeder extends Seeder
             [
                 'jenis_surat' => $kat3->nama_kategori,
                 'judul_surat' => $kat3->nama_kategori,
+                'tujuan_surat' => 'Kepala Dinas Kominfo Kota Bandung',
                 'status' => 'Selesai',
                 'lampiran' => 'lampiran_skripsi_1224018.pdf',
                 'file_surat' => 'surat_penelitian_1224018_signed.pdf',
+                'file_hasil' => 'surat_penelitian_1224018_signed.pdf',
                 'keterangan_admin' => 'Surat sudah selesai diproses dan di-ttd digital.',
                 'tanggal_pengajuan' => now()->subDays(7),
             ]
@@ -196,6 +225,7 @@ class DatabaseSeeder extends Seeder
             [
                 'jenis_surat' => $kat4->nama_kategori,
                 'judul_surat' => $kat4->nama_kategori,
+                'tujuan_surat' => 'Yayasan Beasiswa Prestasi Indonesia',
                 'status' => 'Ditolak',
                 'lampiran' => 'ktp_3224001.jpg',
                 'alasan_penolakan' => 'Lampiran KTM/KTP tidak jelas. Mohon upload ulang dokumen scan yang jelas.',
@@ -210,6 +240,7 @@ class DatabaseSeeder extends Seeder
             [
                 'jenis_surat' => $kat2->nama_kategori,
                 'judul_surat' => $kat2->nama_kategori,
+                'tujuan_surat' => 'Tim Kampus Merdeka Kemendikbud',
                 'status' => 'Pending',
                 'lampiran' => 'cv_transkrip_1224016.pdf',
                 'tanggal_pengajuan' => now()->subHours(5),
