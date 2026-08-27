@@ -22,13 +22,19 @@ class KategoriController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'nama_kategori' => 'required|string|max:255|unique:kategori_surats,nama_kategori',
-            'deskripsi'     => 'nullable|string',
+            'kode_kategori'  => 'required|string|max:50|unique:kategori_surats,kode_kategori',
+            'nama_kategori'  => 'required|string|max:255',
+            'jenis_kategori' => 'nullable|string|max:100',
+            'deskripsi'      => 'nullable|string',
+            'status'         => 'boolean',
         ]);
 
         $kategori = KategoriSurat::create([
-            'nama_kategori' => $request->nama_kategori,
-            'deskripsi'     => $request->deskripsi,
+            'kode_kategori'  => $request->kode_kategori,
+            'nama_kategori'  => $request->nama_kategori,
+            'jenis_kategori' => $request->jenis_kategori,
+            'deskripsi'      => $request->deskripsi,
+            'status'         => $request->status ?? true,
         ]);
 
         return response()->json([
@@ -41,15 +47,22 @@ class KategoriController extends Controller
     // Admin mengedit kategori
     public function update(Request $request, $id)
     {
+        $kategori = KategoriSurat::findOrFail($id);
+
         $request->validate([
-            'nama_kategori' => 'required|string|max:255|unique:kategori_surats,nama_kategori,' . $id,
-            'deskripsi'     => 'nullable|string',
+            'kode_kategori'  => 'required|string|max:50|unique:kategori_surats,kode_kategori,' . $id,
+            'nama_kategori'  => 'required|string|max:255',
+            'jenis_kategori' => 'nullable|string|max:100',
+            'deskripsi'      => 'nullable|string',
+            'status'         => 'boolean',
         ]);
 
-        $kategori = KategoriSurat::findOrFail($id);
         $kategori->update([
-            'nama_kategori' => $request->nama_kategori,
-            'deskripsi'     => $request->deskripsi,
+            'kode_kategori'  => $request->kode_kategori,
+            'nama_kategori'  => $request->nama_kategori,
+            'jenis_kategori' => $request->jenis_kategori,
+            'deskripsi'      => $request->deskripsi,
+            'status'         => $request->status,
         ]);
 
         return response()->json([

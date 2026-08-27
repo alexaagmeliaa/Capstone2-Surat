@@ -7,18 +7,16 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { Search, Download, Info } from 'lucide-react';
 
 export default function RiwayatPengajuan() {
-  // State untuk menyimpan data riwayat dari database
   const [riwayat, setRiwayat] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- TARIK DATA REAL DARI DATABASE ---
   useEffect(() => {
     const fetchRiwayat = async () => {
       try {
         const response = await fetch('http://localhost:8000/api/mahasiswa/surat', {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
             'Accept': 'application/json'
           }
         });
@@ -28,7 +26,6 @@ export default function RiwayatPengajuan() {
         if (response.ok) {
           const arrayData = Array.isArray(data) ? data : (data.data || []);
           
-          // Format data dari backend ke bentuk yang dimengerti tabel frontend
           const formattedData = arrayData.map(item => ({
             id: item.id,
             jenis: item.jenis_surat || 'Surat Pengantar',
@@ -39,8 +36,8 @@ export default function RiwayatPengajuan() {
               hour: '2-digit',
               minute: '2-digit'
             }),
-            // REVISI: Mengambil status apa adanya dari database (Pending, Diproses, Selesai, Ditolak)
             status: item.status || 'Pending',
+            fileHasil: item.file_hasil || null, 
             keterangan: item.keterangan_admin || (
               item.status === 'Ditolak' ? 'Pengajuan ditolak oleh admin.' : 
               item.status === 'Selesai' ? 'Surat telah selesai dan siap diunduh.' : 
@@ -60,13 +57,11 @@ export default function RiwayatPengajuan() {
     fetchRiwayat();
   }, []);
 
-  // State untuk Popup Download Modal
   const [downloadModal, setDownloadModal] = useState({
     isOpen: false,
     message: ''
   });
 
-  // Fitur pencarian berdasarkan Jenis Surat ATAU ID Tiket
   const filteredRiwayat = riwayat.filter((item) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -75,24 +70,52 @@ export default function RiwayatPengajuan() {
     );
   });
 
-  // --- FUNGSI DOWNLOAD PDF ---
-  const handleDownload = (id, jenisSurat) => {
-    setDownloadModal({
-      isOpen: true,
-      message: `Mendownload file PDF untuk pengajuan:\n${jenisSurat} (ID Tiket: ${id})`
-    });
+  // --- FUNGSI DOWNLOAD PDF DENGAN NAMA FILE KUSTOM ---
+  const handleDownload = async (id, jenisSurat) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/surat/${id}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        
+        // Format Nama File: Surat_[JenisSurat]_TKT-[ID].pdf
+        const safeJenis = jenisSurat ? jenisSurat.replace(/[^a-zA-Z0-9]/g, '_') : 'Surat';
+        a.download = `Surat_${safeJenis}_TKT-${id}.pdf`;
+        
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const errData = await response.json();
+        setDownloadModal({
+          isOpen: true,
+          message: errData.pesan || `Gagal mengunduh berkas untuk "${jenisSurat}".`
+        });
+      }
+    } catch (error) {
+      console.error("Error downloading PDF:", error);
+      setDownloadModal({
+        isOpen: true,
+        message: "Terjadi kesalahan pada server saat mencoba mengunduh file."
+      });
+    }
   };
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
-      
-      {/* Sidebar Aktif di menu 'riwayat' */}
       <Sidebar activeMenu="riwayat" role="mahasiswa" />
 
-      {/* --- KONTEN UTAMA KANAN --- */}
       <main className="flex-1 px-10 py-10 overflow-y-auto">
-        
-        {/* Header Atas */}
         <header className="flex justify-between items-start mb-10">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Riwayat Pengajuan</h2>
@@ -109,7 +132,6 @@ export default function RiwayatPengajuan() {
           </div>
         </header>
 
-        {/* Toolbar: Search Bar */}
         <div className="mb-6 flex justify-between items-center">
           <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full md:w-[400px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
             <Search size={20} className="text-gray-400" />
@@ -123,7 +145,6 @@ export default function RiwayatPengajuan() {
           </div>
         </div>
 
-        {/* Tabel Riwayat */}
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -157,17 +178,15 @@ export default function RiwayatPengajuan() {
                       </td>
                       <td className="px-6 py-5">
                         <div className="flex flex-col items-start gap-2">
-                          {/* Logika Warna Badge Status */}
                           <span className={`px-4 py-1 text-[12px] font-bold rounded-full border ${
                             item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
                             item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :
                             item.status === 'Ditolak' ? 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]' :
-                            'border-[#429961] text-[#429961] bg-[#E8F5EB]' // Selesai
+                            'border-[#429961] text-[#429961] bg-[#E8F5EB]'
                           }`}>
                             {item.status.toUpperCase()}
                           </span>
                           
-                          {/* Keterangan tambahan */}
                           <div className="flex items-start gap-1.5 mt-1 text-gray-500">
                             <Info size={14} className="mt-0.5 flex-shrink-0" />
                             <span className="text-[12px] leading-tight max-w-[200px]">
@@ -213,7 +232,6 @@ export default function RiwayatPengajuan() {
             </table>
           </div>
         </div>
-
       </main>
 
       <ConfirmModal 
@@ -224,7 +242,6 @@ export default function RiwayatPengajuan() {
         showCancel={false}
         confirmText="Tutup"
       />
-
     </div>
   );
 }

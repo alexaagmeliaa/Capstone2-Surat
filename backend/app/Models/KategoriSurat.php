@@ -10,5 +10,13 @@ class KategoriSurat extends Model
     use HasFactory;
 
     protected $table = 'kategori_surats';
-    protected $fillable = ['nama_kategori', 'deskripsi']; // PENTING: tambahkan deskripsi di sini
+    
+    // Izinkan kolom-kolom ini diisi
+    protected $fillable = [
+        'kode_kategori',
+        'nama_kategori',
+        'jenis_kategori',
+        'deskripsi',
+        'status'
+    ];
 }

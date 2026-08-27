@@ -3,65 +3,177 @@
 namespace App\Http\Controllers;
 
 use App\Models\Surat;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class SuratController extends Controller
 {
-    // 1. Mahasiswa mengajukan surat
+    // Mahasiswa mengajukan surat
     public function ajukan(Request $request)
     {
         $request->validate([
             'judul_surat' => 'required|string|max:255',
             'keperluan' => 'required|string',
+            'tujuan_surat' => 'required|string', 
         ]);
 
         $surat = Surat::create([
-            'user_id' => Auth::id(), // Pastikan Frontend sudah mengirim token Login
+            'user_id' => Auth::id(),
             'judul_surat' => $request->judul_surat,
             'keperluan' => $request->keperluan,
-            'status' => 'pending',
-            // Menyimpan tanggal secara real-time langsung dari mesin server (Backend)
+            'tujuan_surat' => $request->tujuan_surat,
+            'status' => 'Pending',
             'tanggal_pengajuan' => now(), 
         ]);
 
         return response()->json(['status' => 'sukses', 'data' => $surat], 201);
     }
 
-    // 2. Admin melihat semua surat
+    // Mahasiswa melihat riwayat suratnya sendiri
+    public function indexMahasiswa(Request $request)
+    {
+        $surat = Surat::where('user_id', Auth::id())
+                      ->orderBy('created_at', 'desc')
+                      ->get();
+                      
+        return response()->json($surat, 200);
+    }
+
+    // Admin melihat semua surat
     public function index()
     {
-        // Menampilkan data beserta info mahasiswanya, diurutkan dari yang paling baru
         $surat = Surat::with('user')->orderBy('created_at', 'desc')->get();
         return response()->json($surat, 200);
     }
 
-    // 3. Admin menyetujui atau menolak surat (TERMASUK REVISI DOSEN)
+    // Admin mengubah status + Generate PDF Otomatis jika Selesai
     public function updateStatus(Request $request, $id)
     {
-        // Validasi inputan admin
         $request->validate([
-            'status' => 'required|in:disetujui,ditolak',
-            'alasan' => 'nullable|string' // Alasan akan dikirim dari frontend
+            'status' => 'required|string',
+            'alasan' => 'nullable|string',
         ]);
 
-        $surat = Surat::findOrFail($id);
+        $surat = Surat::with('user')->findOrFail($id);
         $surat->status = $request->status; 
         
-        // Logika untuk menyimpan alasan penolakan jika status ditolak
-        if ($request->status === 'ditolak') {
+        if ($request->status === 'Ditolak' || $request->status === 'ditolak') {
             $surat->alasan_penolakan = $request->alasan;
+            $surat->file_hasil = null;
         } else {
-            // Jika disetujui, pastikan kolom alasan kosong
             $surat->alasan_penolakan = null; 
+        }
+
+        // --- GENERATE PDF OTOMATIS SAAT STATUS SELESAI ---
+        if ($request->status === 'Selesai' || $request->status === 'selesai') {
+            $filename = 'Surat_' . $surat->id . '_' . time() . '.pdf';
+            
+            $pdf = Pdf::loadView('admin.pdf_surat', compact('surat'));
+            
+            Storage::put('public/surat_selesai/' . $filename, $pdf->output());
+            $surat->file_hasil = $filename;
         }
 
         $surat->save();
 
         return response()->json([
             'status' => 'sukses', 
-            'pesan' => 'Status surat berhasil diupdate!',
+            'pesan' => 'Status berhasil diubah dan surat PDF berhasil digenerate otomatis!',
             'data' => $surat
         ]);
+    }
+
+    // Fungsi untuk Admin melakukan Preview PDF sebelum surat diselesaikan
+    public function previewPdf($id)
+    {
+        $surat = Surat::with('user')->findOrFail($id);
+        $pdf = Pdf::loadView('admin.pdf_surat', compact('surat'));
+        return $pdf->stream('Preview_Surat_' . $surat->id . '.pdf');
+    }
+
+    // Mahasiswa mendownload surat yang sudah selesai
+    public function downloadPdf($id)
+    {
+        $surat = Surat::findOrFail($id);
+
+        if (!$surat->file_hasil) {
+            return response()->json(['pesan' => 'File surat belum tersedia.'], 404);
+        }
+
+        $filePath = 'surat_selesai/' . $surat->file_hasil;
+
+        if (!Storage::exists('public/' . $filePath)) {
+            return response()->json(['pesan' => 'File fisik tidak ditemukan di server.'], 404);
+        }
+
+        return Storage::download('public/' . $filePath);
+    }
+
+    // Statistik & Data Ringkasan untuk Dashboard Admin
+    public function dashboardStats()
+    {
+        $totalPengajuan = Surat::count();
+        $butuhDiproses = Surat::whereIn('status', ['Pending', 'Diproses'])->count();
+        $suratSelesai = Surat::where('status', 'Selesai')->count();
+        $totalMahasiswa = User::where('role', 'mahasiswa')->count();
+        
+        $pengajuanTerbaru = Surat::with('user')->orderBy('created_at', 'desc')->take(5)->get();
+
+        return response()->json([
+            'success' => true,
+            'stats' => [
+                'total_pengajuan' => $totalPengajuan,
+                'butuh_diproses' => $butuhDiproses,
+                'surat_selesai' => $suratSelesai,
+                'total_mahasiswa' => $totalMahasiswa
+            ],
+            'terbaru' => $pengajuanTerbaru
+        ], 200);
+    }
+
+    // Mengambil daftar notifikasi surat masuk untuk Admin (LANGKAH 1)
+    public function adminNotifications()
+    {
+        $surat = Surat::with('user')
+                      ->orderBy('created_at', 'desc')
+                      ->take(20)
+                      ->get();
+
+        $notifications = $surat->map(function ($item) {
+            $mhsName = $item->user->name ?? 'Mahasiswa';
+            $jenis = $item->jenis_surat ?? 'Surat Pengantar';
+            
+            if ($item->status === 'Pending') {
+                $title = "Pengajuan Baru Masuk";
+                $message = "{$mhsName} baru saja mengajukan {$jenis}.";
+                $type = "warning";
+            } elseif ($item->status === 'Diproses') {
+                $title = "Surat Sedang Diproses";
+                $message = "Pengajuan {$jenis} oleh {$mhsName} sedang diproses.";
+                $type = "info";
+            } elseif ($item->status === 'Selesai') {
+                $title = "Surat Selesai";
+                $message = "Pengajuan {$jenis} oleh {$mhsName} telah selesai.";
+                $type = "success";
+            } else {
+                $title = "Surat Ditolak";
+                $message = "Pengajuan {$jenis} oleh {$mhsName} ditolak.";
+                $type = "danger";
+            }
+
+            return [
+                'id' => $item->id,
+                'status' => $item->status,
+                'title' => $title,
+                'message' => $message,
+                'type' => $type,
+                'created_at' => $item->created_at,
+            ];
+        });
+
+        return response()->json($notifications, 200);
     }
 }

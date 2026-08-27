@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Settings, LogOut } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import ConfirmModal from './ConfirmModal';
@@ -10,14 +10,14 @@ export default function ProfileDropdown({ role = 'admin' }) {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
-  // 1. BACA STATE SECARA SINKRON: Agar tidak ada delay/flicker saat pindah halaman
+  // 1. Baca state secara sinkron dari sessionStorage
   const [user, setUser] = useState(() => {
-    const cached = localStorage.getItem('cached_user_data');
+    const cached = sessionStorage.getItem('cached_user_data');
     return cached ? JSON.parse(cached) : {};
   });
 
   const [uid, setUid] = useState(() => {
-    const cached = localStorage.getItem('cached_user_data');
+    const cached = sessionStorage.getItem('cached_user_data');
     if (cached) {
       const parsed = JSON.parse(cached);
       return parsed.id || parsed.email || (role === 'admin' ? 'admin_user' : 'guest');
@@ -26,22 +26,20 @@ export default function ProfileDropdown({ role = 'admin' }) {
   });
 
   const [profileImg, setProfileImg] = useState(() => {
-    // Cari UID terlebih dahulu secara langsung
     let initialUid = role === 'admin' ? 'admin_user' : 'guest';
-    const cached = localStorage.getItem('cached_user_data');
+    const cached = sessionStorage.getItem('cached_user_data');
     if (cached) {
       const parsed = JSON.parse(cached);
       initialUid = parsed.id || parsed.email || initialUid;
     }
-    // Langsung tembak foto dari local storage tanpa nunggu API
-    const saved = localStorage.getItem(`profile_img_${initialUid}`);
+    const saved = sessionStorage.getItem(`profile_img_${initialUid}`);
     return (saved && saved !== "null" && saved !== "undefined") ? saved : null;
   });
 
-  // 2. FETCH API SILENT UPDATE: Tetap ambil data terbaru di background tanpa mengganggu UI
+  // 2. Fetch data terbaru di background
   const loadUserData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (!token) return;
 
       const response = await fetch('http://localhost:8000/api/user', {
@@ -58,17 +56,13 @@ export default function ProfileDropdown({ role = 'admin' }) {
         setUser(data);
         currentUid = data.id || data.email || currentUid;
         setUid(currentUid);
-        
-        // Simpan cache agar load berikutnya instan!
-        localStorage.setItem('cached_user_data', JSON.stringify(data));
+        sessionStorage.setItem('cached_user_data', JSON.stringify(data));
       }
 
-      const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
+      const savedImg = sessionStorage.getItem(`profile_img_${currentUid}`);
       if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
         setProfileImg(savedImg);
       } else {
-        // PERBAIKAN: Jika user baru tidak punya foto tersimpan, wajib RESET ke null 
-        // agar fungsi getUserAvatar (inisial nama) bisa mengambil alih
         setProfileImg(null);
       }
     } catch (error) {
@@ -80,10 +74,10 @@ export default function ProfileDropdown({ role = 'admin' }) {
     loadUserData();
   }, [role]);
 
-  // 3. TANGKAP EVENT TANPA API: Kalau foto diganti, langsung render instan!
+  // 3. Sinkronisasi real-time jika foto diubah di Settings
   useEffect(() => {
     const handleImageUpdate = () => {
-      const savedImg = localStorage.getItem(`profile_img_${uid}`);
+      const savedImg = sessionStorage.getItem(`profile_img_${uid}`);
       if (savedImg && savedImg !== "null" && savedImg !== "undefined") {
         setProfileImg(savedImg);
       } else {
@@ -101,9 +95,11 @@ export default function ProfileDropdown({ role = 'admin' }) {
     ? user.name.charAt(0).toUpperCase() + user.name.slice(1) 
     : (role === 'admin' ? 'Administrator' : 'Mahasiswa');
 
-  // Pakai foto profil yang disimpan, ATAU inisial dinamis
-  const avatarSrc = profileImg || getUserAvatar(user);
+  // 🟢 KONSISTENSI INISIAL: Mengambil huruf pertama dari nama user (sama persis dengan Settings)
+  const displayName = user.name || formattedName;
+  const initialLetter = displayName.charAt(0).toUpperCase();
 
+  // Tutup dropdown saat klik di luar
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -115,13 +111,11 @@ export default function ProfileDropdown({ role = 'admin' }) {
   }, []);
 
   const confirmLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    localStorage.removeItem('cached_user_data'); // Hapus cache saat logout
-    
-    // PERBAIKAN: Hapus cache fallback default agar tidak nyangkut saat akun baru login pertama kali
-    localStorage.removeItem('profile_img_admin_user');
-    localStorage.removeItem('profile_img_guest');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('role');
+    sessionStorage.removeItem('cached_user_data');
+    sessionStorage.removeItem('profile_img_admin_user');
+    sessionStorage.removeItem('profile_img_guest');
     
     navigate('/login');
   };
@@ -131,21 +125,24 @@ export default function ProfileDropdown({ role = 'admin' }) {
   return (
     <div className="relative" ref={dropdownRef}>
       
-      {/* Tombol Profile / Trigger Dropdown */}
+      {/* Tombol Avatar di Pojok Kanan Atas */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center border-2 border-[#3470B9] hover:border-[#285a96] transition-all focus:outline-none rounded-full outline-none shadow-sm overflow-hidden"
+        className="flex items-center focus:outline-none rounded-full shadow-sm overflow-hidden transition-transform active:scale-95"
       >
-        <div className="w-11 h-11 rounded-full overflow-hidden flex justify-center items-center bg-[#D1D5DB]">
-          <img 
-            src={avatarSrc} 
-            alt={formattedName} 
-            className="w-full h-full object-cover"
-          />
-        </div>
+        {profileImg ? (
+          <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#2A60A4]">
+            <img src={profileImg} alt={displayName} className="w-full h-full object-cover" />
+          </div>
+        ) : (
+          // Tampilan Inisial Huruf Tunggal yang Serasi dengan Halaman Settings
+          <div className="w-11 h-11 rounded-full bg-[#2A60A4] text-white font-bold flex items-center justify-center border-2 border-[#1f4b82] select-none">
+            <span className="text-[18px]">{initialLetter}</span>
+          </div>
+        )}
       </button>
 
-      {/* Kotak Dropdown Menu */}
+      {/* Kotak Dropdown */}
       {isOpen && (
         <div className="absolute right-0 mt-3 w-[280px] bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
           
@@ -154,16 +151,19 @@ export default function ProfileDropdown({ role = 'admin' }) {
           {/* Header Profil Singkat */}
           <div className="p-4 bg-gray-50 border-b border-gray-200 relative z-10">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full border-2 border-[#3470B9] overflow-hidden bg-[#D1D5DB] flex-shrink-0 flex justify-center items-center">
-                <img 
-                  src={avatarSrc} 
-                  alt={formattedName} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              {profileImg ? (
+                <div className="w-12 h-12 rounded-full border-2 border-[#2A60A4] overflow-hidden flex-shrink-0">
+                  <img src={profileImg} alt={displayName} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-[#2A60A4] text-white font-bold flex items-center justify-center flex-shrink-0">
+                  <span className="text-[20px]">{initialLetter}</span>
+                </div>
+              )}
+              
               <div className="overflow-hidden">
                 <div className="text-[15px] font-bold text-[#182D4A] truncate">
-                  {formattedName}
+                  {displayName}
                 </div>
                 <div className="text-[13px] font-medium text-gray-500 truncate">
                   {user?.email || (role === 'admin' ? 'admin@stmik.ac.id' : '-')}
@@ -176,6 +176,7 @@ export default function ProfileDropdown({ role = 'admin' }) {
           <div className="p-2 space-y-1 relative z-10 bg-white">
             <Link 
               to={settingPath} 
+              state={{ activeTab: 'profil' }}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-[#2A60A4] rounded-lg transition-colors"
             >

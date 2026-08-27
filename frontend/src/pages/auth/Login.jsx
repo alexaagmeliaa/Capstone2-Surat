@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import dummyData from '../../data/dummy.json';
 import bgImage from '/assets/bg/bg.png';
 
 // Icon Email Sesuai Desain (Garis Biru)
@@ -49,18 +48,22 @@ export default function Login() {
 
       // 2. Cek apakah login sukses
       if (response.ok) {
-        // SIMPAN TOKEN KE MEMORI BROWSER (Sangat Penting untuk fitur Ajukan Surat!)
-        localStorage.setItem('token', data.access_token);
+        // SIMPAN TOKEN & ROLE KE SESSION STORAGE (TERISOLASI PER TAB)
+        sessionStorage.setItem('token', data.access_token);
+        
+        // Mengambil role secara fleksibel dari respons backend
+        const userRole = data.role || (data.user && data.user.role); 
+        sessionStorage.setItem('role', userRole); 
         
         // Cek role untuk mengarahkan ke halaman yang benar
-        if (data.role === 'admin') {
+        if (userRole === 'admin') {
           navigate('/ad/dashboard'); 
         } else {
           navigate('/mhs/dashboard'); 
         }
       } else {
         // Kalau password/email salah, tampilkan pesan dari backend
-        setErrorMsg(data.pesan || 'Email atau password tidak cocok!');
+        setErrorMsg(data.pesan || data.message || 'Email atau password tidak cocok!');
       }
     } catch (error) {
       console.error("Error:", error);
@@ -130,7 +133,7 @@ export default function Login() {
               />
             </div>
             
-            {/* Remember Me Checkbox (Menggantikan Lupa Password) */}
+            {/* Remember Me Checkbox */}
             <div className="mt-4 flex items-center gap-2">
               <input 
                 type="checkbox" 

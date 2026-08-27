@@ -4,14 +4,16 @@ import Sidebar from '../../components/Sidebar';
 import ProfileDropdown from '../../components/ProfileDropdown';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import ConfirmModal from '../../components/ConfirmModal';
-import { UploadCloud, Send, AlertCircle, FileType, CheckCircle } from 'lucide-react';
+import { UploadCloud, Send, AlertCircle, FileType, CheckCircle, Building2 } from 'lucide-react';
 
 export default function AjukanSurat() {
-  const [currentUser, setCurrentUser] = useState({ name: '', nim: '' });
-  const [jenisSuratList, setJenisSuratList] = useState([]); // State untuk menampung kategori dari database
-  const [jenisSurat, setJenisSurat] = useState('');
-  const [keperluan, setKeperluan] = useState('');
-  const [fileName, setFileName] = useState('');
+  // --- 1. STATE MANAGEMENT (Menyimpan data komponen) ---
+  const [currentUser, setCurrentUser] = useState({ name: '', nim: '' }); 
+  const [jenisSuratList, setJenisSuratList] = useState([]); 
+  const [jenisSurat, setJenisSurat] = useState(''); 
+  const [tujuanSurat, setTujuanSurat] = useState(''); // STATE BARU: Untuk tujuan surat (Instansi/Perusahaan)
+  const [keperluan, setKeperluan] = useState(''); 
+  const [fileName, setFileName] = useState(''); 
 
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
@@ -21,29 +23,32 @@ export default function AjukanSurat() {
     confirmText: 'OK'
   });
 
-  // 1. Ambil data user yang sedang login & daftar kategori surat dari database
+  // --- 2. AMBIL DATA USER & KATEGORI SURAT DARI BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Accept': 'application/json'
       };
 
       try {
-        // Ambil data user
         const resUser = await fetch('http://localhost:8000/api/user', { headers });
         if (resUser.ok) {
-          const userData = await resUser.json();
-          setCurrentUser(userData);
+          const jsonUser = await resUser.json();
+          const userData = jsonUser.data || jsonUser;
+          setCurrentUser({
+            name: userData.name || '',
+            nim: userData.nim || userData.email || ''
+          });
         }
 
-        // Ambil data kategori surat dari database
         const resKategori = await fetch('http://localhost:8000/api/kategori-surat', { headers });
         if (resKategori.ok) {
           const katData = await resKategori.json();
           if (katData.success) {
-            setJenisSuratList(katData.data);
+            const activeKategori = (katData.data || []).filter(kat => kat.status === 1 || kat.status === true);
+            setJenisSuratList(activeKategori);
           }
         }
       } catch (error) {
@@ -64,6 +69,7 @@ export default function AjukanSurat() {
     });
   };
 
+  // --- 4. HANDLE DRAG & DROP FILE LAMPIRAN ---
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -93,17 +99,19 @@ export default function AjukanSurat() {
     }
   };
 
-  // --- FUNGSI SUBMIT PENGAJUAN ---
+  // --- 5. FUNGSI KIRIM (SUBMIT) PENGAJUAN SURAT KE BACKEND ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!jenisSurat || !keperluan) {
-      showNotification("Harap lengkapi jenis surat dan keperluan!", "warning");
+    // Validasi form kosong termasuk tujuan surat
+    if (!jenisSurat || !tujuanSurat || !keperluan) {
+      showNotification("Harap lengkapi jenis surat, tujuan surat, dan keperluan!", "warning");
       return;
     }
 
     const formData = new FormData();
     formData.append('jenis_surat', jenisSurat);
+    formData.append('tujuan_surat', tujuanSurat); // Kirim data tujuan surat ke backend
     formData.append('keperluan', keperluan);
     
     const file = fileInputRef.current?.files[0];
@@ -116,7 +124,7 @@ export default function AjukanSurat() {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
         },
         body: formData
       });
@@ -126,6 +134,7 @@ export default function AjukanSurat() {
       if (response.ok) {
         showNotification(`Pengajuan "${jenisSurat}" berhasil dikirim ke Admin!\nSilakan pantau status surat di menu Riwayat.`, "success");
         setJenisSurat('');
+        setTujuanSurat(''); // Reset state tujuan surat
         setKeperluan('');
         setFileName('');
         if (fileInputRef.current) {
@@ -178,6 +187,7 @@ export default function AjukanSurat() {
 
           <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-8">
             
+            {/* Bagian 1: Data Pemohon */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Data Pemohon</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -202,10 +212,12 @@ export default function AjukanSurat() {
               </div>
             </div>
 
+            {/* Bagian 2: Detail Pengajuan Surat */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Detail Pengajuan Surat</h3>
               
               <div className="space-y-6">
+                {/* Dropdown Kategori Surat */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Pilih Jenis Surat <span className="text-red-500">*</span></label>
                   <div className="relative">
@@ -216,10 +228,9 @@ export default function AjukanSurat() {
                       className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-3 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] appearance-none font-medium transition-colors cursor-pointer"
                     >
                       <option value="" disabled>-- Pilih Kategori Surat --</option>
-                      {/* Pilihan dropdown sekarang dinamis berdasarkan database kategori */}
                       {jenisSuratList.map((kat) => (
                         <option key={kat.id} value={kat.nama_kategori}>
-                          {kat.nama_kategori}
+                          {kat.kode_kategori ? `[${kat.kode_kategori}] ` : ''}{kat.nama_kategori}
                         </option>
                       ))}
                     </select>
@@ -229,6 +240,27 @@ export default function AjukanSurat() {
                   </div>
                 </div>
 
+                {/* --- INPUT BARU: DITUJUKAN KEPADA (INSTANSI / PERUSAHAAN) --- */}
+                <div>
+                  <label className="block text-[14px] font-semibold text-gray-700 mb-2">
+                    Ditujukan Kepada (Instansi / Perusahaan / Instansi Tujuan) <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input 
+                      type="text"
+                      required
+                      value={tujuanSurat}
+                      onChange={(e) => setTujuanSurat(e.target.value)}
+                      placeholder="Contoh: PT. Telkom Indonesia / Dinas Pendidikan Kota Bandung"
+                      className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-3 pl-11 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium transition-colors"
+                    />
+                    <div className="absolute left-3.5 top-3.5 text-gray-400">
+                      <Building2 size={20} />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Textarea Keperluan Pengajuan */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Keperluan Pengajuan <span className="text-red-500">*</span></label>
                   <textarea 
@@ -243,6 +275,7 @@ export default function AjukanSurat() {
               </div>
             </div>
 
+            {/* Bagian 3: Unggah Lampiran Berkas (Opsional) */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">
                 Lampiran Berkas <span className="text-sm font-normal text-gray-500">(Opsional)</span>
@@ -292,6 +325,7 @@ export default function AjukanSurat() {
               </div>
             </div>
 
+            {/* Tombol Aksi Batal & Kirim */}
             <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
               <Link 
                 to="/mhs/dashboard" 

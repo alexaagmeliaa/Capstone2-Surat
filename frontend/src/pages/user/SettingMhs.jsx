@@ -3,26 +3,27 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ConfirmModal from '../../components/ConfirmModal';
 import { FileText, Info, Check, UploadCloud, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import { getUserAvatar } from '../../utils/avatar';
 
 export default function SettingMhs() {
   const location = useLocation();
+  // State untuk mengontrol tab aktif ('profil' atau 'notifikasi')
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
 
-  // State data profil dari database
+  // State data profil dari database & status loading
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(true);
 
-  // State untuk Notifikasi Real-Time dari Backend
+  // State untuk daftar riwayat notifikasi mahasiswa
   const [notifications, setNotifications] = useState([]);
 
+  // Sinkronisasi tab jika berpindah halaman dengan state
   useEffect(() => {
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
 
-  // Helper waktu relatif (cth: "2 jam lalu")
+  // Helper untuk mengubah format tanggal menjadi waktu relatif (cth: "2 jam lalu")
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Baru saja';
     const diffMs = new Date() - new Date(dateString);
@@ -37,21 +38,20 @@ export default function SettingMhs() {
     return `${diffDays} hari lalu`;
   };
 
-  // Helper mengambil ID notifikasi yang dibaca
+  // Helper untuk mengambil ID notifikasi yang sudah dibaca dari sessionStorage
   const getReadNotifIds = (uId) => {
     try {
-      const saved = localStorage.getItem(`read_notifs_${uId}`);
+      const saved = sessionStorage.getItem(`read_notifs_${uId}`);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
     }
   };
 
-  // Tarik data profil & notifikasi mahasiswa dari Backend API
+  // Fungsi untuk menarik data profil lengkap mahasiswa dan riwayat suratnya dari API backend
   const fetchUserProfileAndNotifs = async () => {
-    setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       if (!token) return;
 
       const headers = {
@@ -59,27 +59,28 @@ export default function SettingMhs() {
         'Accept': 'application/json'
       };
 
-      // 1. Ambil data profil user yang sedang login
-      const response = await fetch('http://localhost:8000/api/user', { headers });
+      // 1. Ambil data profil mahasiswa yang sedang login (hanya saat pertama kali load agar tidak berat)
+      if (isLoading) {
+        const response = await fetch('http://localhost:8000/api/user', { headers });
+        if (response.ok) {
+          const data = await response.json();
+          setUser(data);
+          const currentUid = data.id || data.email || 'guest';
 
-      let currentUid = 'guest';
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-        currentUid = data.id || data.email || 'guest';
-
-        const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
-        setFormData(prev => ({
-          ...prev,
-          img: savedImg || getUserAvatar(data)
-        }));
+          const savedImg = sessionStorage.getItem(`profile_img_${currentUid}`);
+          setFormData(prev => ({
+            ...prev,
+            img: savedImg || null
+          }));
+        }
       }
 
-      // 2. Ambil data pengajuan surat mahasiswa untuk notifikasi (hanya milik mahasiswa ini!)
+      // 2. Ambil riwayat pengajuan surat milik mahasiswa ini untuk tab notifikasi
       const notifRes = await fetch('http://localhost:8000/api/mahasiswa/surat', { headers });
       if (notifRes.ok) {
         const suratData = await notifRes.json();
         const arraySurat = Array.isArray(suratData) ? suratData : (suratData.data || []);
+        const currentUid = user.id || user.email || 'guest';
         const readIds = getReadNotifIds(currentUid);
 
         const formatted = arraySurat.map(surat => {
@@ -90,24 +91,25 @@ export default function SettingMhs() {
           let message = '';
           let type = 'info';
 
+          // Menyesuaikan pesan berdasarkan status dari Admin secara real-time
           if (surat.status === 'Selesai') {
-            message = `Pengajuan ${jenisSurat} Anda telah disetujui & selesai diproses!`;
+            message = `Pengajuan ${jenisSurat} Anda telah selesai diproses oleh Admin. Silakan unduh dokumen Anda!`;
             type = 'success';
           } else if (surat.status === 'Ditolak') {
-            const alasan = surat.alasan_penolakan || surat.keterangan_admin || 'Dokumen belum lengkap';
-            message = `Pengajuan ${jenisSurat} Anda ditolak: "${alasan}"`;
+            const alasan = surat.alasan_penolakan || 'Dokumen atau data belum lengkap';
+            message = `Pengajuan ${jenisSurat} Anda ditolak. Alasan: "${alasan}"`;
             type = 'danger';
           } else if (surat.status === 'Diproses') {
-            message = `Pengajuan ${jenisSurat} Anda sedang diproses oleh pihak Admin.`;
+            message = `Pengajuan ${jenisSurat} Anda sedang dikerjakan/diproses oleh pihak Admin.`;
             type = 'info';
           } else {
-            message = `Pengajuan ${jenisSurat} Anda telah terkirim dan menunggu peninjauan Admin.`;
+            message = `Pengajuan ${jenisSurat} Anda berhasil dikirim dan menunggu antrean peninjauan Admin.`;
             type = 'warning';
           }
 
           return {
             id: notifId,
-            title: `Status Pengajuan: ${surat.status}`,
+            title: `Status: ${surat.status}`,
             message,
             time: getRelativeTime(surat.created_at || surat.updated_at),
             isRead,
@@ -125,22 +127,31 @@ export default function SettingMhs() {
     }
   };
 
+  // 🟢 POLLING AUTO-REFRESH: Cek status surat/notifikasi baru setiap 5 detik secara otomatis
   useEffect(() => {
     fetchUserProfileAndNotifs();
+
+    const interval = setInterval(() => {
+      fetchUserProfileAndNotifs();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
+  // Menyiapkan nama dan inisial huruf pertama untuk avatar
   const formattedName = user.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : 'Mahasiswa';
+  const initialLetter = formattedName.charAt(0).toUpperCase();
 
-  // --- STATE FORM (FOTO & PASSWORD) ---
+  // State untuk form ubah password & foto profil
   const [formData, setFormData] = useState({
-    img: getUserAvatar(null),
+    img: null,
     tempImg: null,
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
-  // State untuk Popup Modal
+  // State untuk mengontrol pop-up modal informasi/notifikasi
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
     type: 'info',
@@ -159,18 +170,19 @@ export default function SettingMhs() {
     });
   };
 
-  // State untuk Drag & Drop
+  // State dan referensi untuk fitur drag & drop foto profil
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Fungsi untuk menandai semua notifikasi telah dibaca
   const markAllAsRead = () => {
     const uId = user.id || user.email || 'guest';
     const allIds = notifications.map(n => n.id);
-    localStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
+    sessionStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
     setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
   };
 
-  // --- FUNGSI DRAG & DROP FOTO ---
+  // Fungsi menangani file gambar yang diunggah
   const handleFile = (file) => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -205,12 +217,13 @@ export default function SettingMhs() {
     }
   };
 
-  // --- FUNGSI SIMPAN PERUBAHAN KE BACKEND & LOCALSTORAGE ---
+  // --- FUNGSI UTAMA: MENYIMPAN PERUBAHAN (FOTO & PASSWORD) ---
   const handleSaveAll = async (e) => {
     e.preventDefault();
 
     const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
 
+    // Validasi form password jika diisi
     if (isChangingPassword) {
       if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
         showNotification("Harap lengkapi semua kolom password jika ingin mengubah password!", "warning");
@@ -222,10 +235,10 @@ export default function SettingMhs() {
       }
     }
 
-    // Jika ada perubahan password, kirim ke backend API
+    // Kirim perubahan password ke backend API
     if (isChangingPassword) {
       try {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         const res = await fetch('http://localhost:8000/api/user/profile', {
           method: 'PUT',
           headers: {
@@ -250,9 +263,10 @@ export default function SettingMhs() {
       }
     }
 
+    // Simpan foto profil ke sessionStorage jika diubah
     if (formData.tempImg) {
       const uId = user.id || user.email || 'guest';
-      localStorage.setItem(`profile_img_${uId}`, formData.tempImg);
+      sessionStorage.setItem(`profile_img_${uId}`, formData.tempImg);
       window.dispatchEvent(new Event('profileImageUpdated'));
     }
 
@@ -261,11 +275,12 @@ export default function SettingMhs() {
       successMessage += `- Foto Profil diperbarui.\n`;
     }
     if (isChangingPassword) {
-      successMessage += `- Password akun berhasil diperbarui di server backend.`;
+      successMessage += `- Password akun berhasil diperbarui.`;
     }
 
     showNotification(successMessage, "success");
 
+    // Reset form setelah berhasil
     setFormData(prev => ({
       ...prev,
       tempImg: null,
@@ -275,15 +290,13 @@ export default function SettingMhs() {
     }));
   };
 
-  const avatarSrc = formData.img || getUserAvatar(user);
-
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
-
+      {/* Sidebar Navigasi Mahasiswa */}
       <Sidebar activeMenu="setting" role="mahasiswa" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto">
-
+        {/* Header Halaman */}
         <header className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Profil Saya</h2>
@@ -296,8 +309,7 @@ export default function SettingMhs() {
         </header>
 
         <div className="max-w-6xl">
-
-          {/* Bagian Tabs */}
+          {/* Navigasi Tab (Profil & Notifikasi) */}
           <div className="flex items-end">
             <button
               onClick={() => setActiveTab('profil')}
@@ -320,32 +332,38 @@ export default function SettingMhs() {
             </button>
           </div>
 
-          {/* Kotak Utama Konten */}
+          {/* Kotak Konten Utama */}
           <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] rounded-tr-[12px] p-8 md:p-10 shadow-sm relative min-h-[500px]">
-
-            {/* --- ISI TAB PROFIL --- */}
+            
+            {/* === KONTEN TAB PROFIL === */}
             {activeTab === 'profil' && (
               <form onSubmit={handleSaveAll} className="flex flex-col lg:flex-row gap-12 animate-fade-in">
 
-                {/* KIRI: Foto & Drag Drop */}
+                {/* Kolom Kiri: Foto / Inisial Huruf & Tombol Upload */}
                 <div className="w-full lg:w-[30%] flex flex-col items-center pt-2">
-
-                  {/* Area Drag & Drop Foto */}
                   <div
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current.click()}
-                    className={`relative w-48 h-48 rounded-full overflow-hidden border-[3px] border-[#3470B9] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${isDragging ? 'bg-[#E8F5EB]' : 'bg-[#D1D5DB]'
-                      }`}
+                    className={`relative w-52 h-52 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
+                      isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#2A60A4] bg-[#2A60A4]'
+                    }`}
                   >
-                    <img
-                      src={avatarSrc}
-                      alt={formattedName}
-                      className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
-                    />
+                    {formData.img ? (
+                      <img
+                        src={formData.img}
+                        alt={formattedName}
+                        className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`}
+                      />
+                    ) : (
+                      // Tampilan Inisial Huruf Otomatis Jika Belum Ada Foto Profil
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A60A4] to-[#183760] text-white select-none">
+                        <span className="text-[72px] font-bold tracking-wider">{initialLetter}</span>
+                      </div>
+                    )}
 
-                    {/* Overlay saat di hover atau saat dragging */}
+                    {/* Overlay saat gambar di-hover atau di-drag */}
                     <div className={`absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                       <UploadCloud color="white" size={32} className="mb-2" />
                       <span className="text-white text-[13px] font-semibold text-center px-4">
@@ -372,19 +390,17 @@ export default function SettingMhs() {
                     </p>
                   </div>
 
-                  {/* Tombol pemicu file upload manual */}
-                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
+                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#2A60A4] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#1f4b82] transition-colors w-full shadow-sm">
                     Upload Foto Baru
                   </button>
                 </div>
 
-                {/* KANAN: Form Informasi Pribadi */}
+                {/* Kolom Kanan: Informasi Pribadi Mahasiswa dari Database & Form Password */}
                 <div className="w-full lg:w-[70%]">
                   <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pribadi (Dari Database)</h4>
 
-                  {/* Grid Form Terkunci */}
+                  {/* Grid Data Mahasiswa yang Disinkronkan dari Database */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nama Lengkap</label>
                       <input type="text" value={user.name || ''} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
@@ -434,10 +450,9 @@ export default function SettingMhs() {
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Alamat Lengkap</label>
                       <textarea value={user.alamat || '-'} rows="3" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium resize-none select-none"></textarea>
                     </div>
-
                   </div>
 
-                  {/* Form Ganti Password */}
+                  {/* Bagian Keamanan / Ubah Password Mahasiswa */}
                   <div className="pt-8 mt-8 border-t border-gray-300">
                     <h4 className="text-[18px] font-bold text-[#182D4A] mb-5">Ubah Keamanan Akun</h4>
 
@@ -449,7 +464,7 @@ export default function SettingMhs() {
                           value={formData.oldPassword}
                           onChange={(e) => setFormData({ ...formData, oldPassword: e.target.value })}
                           placeholder="Masukkan password saat ini..."
-                          className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all"
+                          className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all"
                         />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -460,7 +475,7 @@ export default function SettingMhs() {
                             value={formData.newPassword}
                             onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
                             placeholder="Buat password baru..."
-                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all"
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all"
                           />
                         </div>
                         <div>
@@ -470,7 +485,7 @@ export default function SettingMhs() {
                             value={formData.confirmPassword}
                             onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                             placeholder="Ulangi password baru..."
-                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all"
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all"
                           />
                         </div>
                       </div>
@@ -478,7 +493,7 @@ export default function SettingMhs() {
 
                     {/* Tombol Simpan Perubahan */}
                     <div className="flex justify-end pt-8">
-                      <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
+                      <button type="submit" className="bg-[#2A60A4] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#1f4b82] transition-colors shadow-sm">
                         Simpan Perubahan
                       </button>
                     </div>
@@ -488,10 +503,9 @@ export default function SettingMhs() {
               </form>
             )}
 
-            {/* --- ISI TAB NOTIFIKASI WEB --- */}
+            {/* === KONTEN TAB NOTIFIKASI === */}
             {activeTab === 'notifikasi' && (
               <div className="animate-fade-in w-full">
-
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
                   <div>
                     <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Notifikasi Pengajuan Surat</h3>
@@ -546,15 +560,13 @@ export default function SettingMhs() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
-
           </div>
         </div>
-
       </main>
 
+      {/* Komponen Modal Popup Notifikasi */}
       <ConfirmModal
         isOpen={popupModal.isOpen}
         onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
@@ -564,6 +576,7 @@ export default function SettingMhs() {
         confirmText={popupModal.confirmText}
       />
 
+      {/* Styling Animasi CSS Sederhana */}
       <style dangerouslySetInnerHTML={{
         __html: `
         .animate-fade-in {

@@ -7,12 +7,17 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { Search, Eye, X, Filter } from 'lucide-react';
 
 export default function KelolaPengajuan() {
+  // ==========================================
+  // STATE MANAGEMENT
+  // ==========================================
   const [requests, setRequests] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
+  // State untuk filter tab status surat (Semua, Pending, Diproses, Selesai, Ditolak)
   const [filterStatus, setFilterStatus] = useState('Semua');
 
+  // State untuk kontrol Modal Detail dan Modal Konfirmasi (Popup)
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState(null);
 
@@ -25,16 +30,25 @@ export default function KelolaPengajuan() {
     confirmText: 'Ya, Yakin'
   });
 
+  // ==========================================
+  // LIFECYCLE: AMBIL DATA SAAT HALAMAN DIMUAT
+  // ==========================================
   useEffect(() => {
     fetchRequests();
   }, []);
 
+  /**
+   * Fungsi untuk mengambil data pengajuan surat dari Backend Laravel API.
+   * MENGGUNAKAN sessionStorage: Token diambil dari sessionStorage agar sinkron 
+   * dengan sesi login Admin dan mencegah konflik token antar tab.
+   */
   const fetchRequests = async () => {
     setIsLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/admin/surat', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          // Autentikasi token admin via sessionStorage (Bukan localStorage)
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         }
       });
@@ -43,6 +57,7 @@ export default function KelolaPengajuan() {
       if (response.ok) {
         const arrayData = Array.isArray(data) ? data : (data.data || []);
         
+        // Memetakan data dari database ke format yang dibutuhkan tabel frontend
         const formattedData = arrayData.map(item => ({
           id: item.id,
           nama: item.user?.name || 'Mahasiswa',
@@ -53,18 +68,21 @@ export default function KelolaPengajuan() {
           }),
           status: item.status, 
           keperluan: item.keperluan,
-          lampiran: item.lampiran // <--- INI BAGIAN PENTING YANG DITAMBAHKAN
+          lampiran: item.lampiran
         }));
         
         setRequests(formattedData);
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Gagal memuat data pengajuan surat:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // ==========================================
+  // FITUR PENCARIAN & FILTERING DATA
+  // ==========================================
   const filteredRequests = requests.filter((item) => {
     const matchesSearch = item.nama?.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           item.nim?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -73,19 +91,33 @@ export default function KelolaPengajuan() {
     return matchesSearch && matchesStatus;
   });
 
-  const executeUpdateStatus = async (id, newStatus) => {
+  // ==========================================
+  // FUNGSI EKSEKUSI PERUBAHAN STATUS & FILE UPLOAD
+  // ==========================================
+  const executeUpdateStatus = async (id, newStatus, fileHasil = null) => {
     try {
+      // Menggunakan FormData karena melibatkan pengiriman file PDF dari admin
+      const formData = new FormData();
+      formData.append('status', newStatus);
+
+      if (fileHasil) {
+        formData.append('file_hasil', fileHasil);
+      }
+
       const response = await fetch(`http://localhost:8000/api/admin/surat/${id}/status`, {
-        method: 'PUT',
+        method: 'POST', // Menggunakan POST agar file FormData terbaca di backend Laravel
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          // Autentikasi token admin via sessionStorage (Jangan set Content-Type secara manual saat pakai FormData)
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: formData
       });
 
+      const responseData = await response.json();
+
       if (response.ok) {
+        // Perbarui state secara lokal agar UI langsung berubah tanpa perlu refresh manual
         const updatedRequests = requests.map(req => 
           req.id === id ? { ...req, status: newStatus } : req
         );
@@ -99,25 +131,25 @@ export default function KelolaPengajuan() {
           setIsModalOpen(false);
         }
 
+        // Tampilkan modal sukses
         setPopupModal({
           isOpen: true,
           type: 'success',
           message: `Berhasil! Status pengajuan telah diubah menjadi ${newStatus}.`,
-          onConfirm: null,
+          onConfirm: () => fetchRequests(), // Refresh ulang data dari server
           showCancel: false,
           confirmText: 'OK'
         });
       } else {
-        const errorData = await response.json();
-        alert(errorData.message || "Gagal mengubah status surat.");
+        alert(responseData.message || "Gagal mengubah status surat.");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error koneksi server:", error);
       alert("Gagal terhubung ke server saat mengubah status.");
     }
   };
 
-  const handleUpdateStatus = (id, newStatus) => {
+  const handleUpdateStatus = (id, newStatus, fileHasil = null) => {
     const modalType = newStatus === 'Ditolak' ? 'danger' : newStatus === 'Selesai' ? 'success' : 'warning';
     
     setPopupModal({
@@ -126,7 +158,7 @@ export default function KelolaPengajuan() {
       message: `Apakah Anda yakin ingin mengubah status pengajuan ini menjadi "${newStatus}"?`,
       showCancel: true,
       confirmText: 'Ya, Yakin',
-      onConfirm: () => executeUpdateStatus(id, newStatus)
+      onConfirm: () => executeUpdateStatus(id, newStatus, fileHasil)
     });
   };
 
@@ -137,13 +169,18 @@ export default function KelolaPengajuan() {
 
   const statusTabs = ['Semua', 'Pending', 'Diproses', 'Selesai', 'Ditolak'];
 
+  // ==========================================
+  // RENDER TAMPILAN (UI)
+  // ==========================================
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
       
+      {/* Sidebar Navigasi */}
       <Sidebar activeMenu="kelola-surat" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto relative">
         
+        {/* Header Halaman */}
         <header className="flex justify-between items-start mb-10">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Kelola Surat</h2>
@@ -160,8 +197,10 @@ export default function KelolaPengajuan() {
           </div>
         </header>
 
+        {/* Bar Filter Status & Pencarian */}
         <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           
+          {/* Tab Filter Status */}
           <div className="flex bg-white rounded-xl shadow-sm border border-gray-300 p-1">
             {statusTabs.map(tab => (
               <button
@@ -178,6 +217,7 @@ export default function KelolaPengajuan() {
             ))}
           </div>
 
+          {/* Kolom Search Berdasarkan Nama / NIM */}
           <div className="flex items-center bg-white border border-gray-300 rounded-xl px-4 py-2.5 w-full md:w-[320px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
             <Search size={18} className="text-gray-400" />
             <input 
@@ -195,6 +235,7 @@ export default function KelolaPengajuan() {
           </div>
         </div>
 
+        {/* Tabel Daftar Pengajuan Surat */}
         <div className="bg-[#F4F5F7] rounded-[12px] border-[1.5px] border-gray-400 shadow-[0_8px_15px_rgb(0,0,0,0.05)] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -224,6 +265,7 @@ export default function KelolaPengajuan() {
                       <td className="px-6 py-4 text-[14px] text-gray-800 font-medium">{item.jenis}</td>
                       <td className="px-6 py-4 text-[14px] text-gray-700">{item.tanggal}</td>
                       <td className="px-6 py-4">
+                        {/* Badge Status dengan warna dinamis berdasarkan kondisi */}
                         <span className={`px-4 py-1.5 text-[12px] font-bold rounded-full border inline-block ${
                           item.status === 'Pending' 
                             ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' 
@@ -265,6 +307,7 @@ export default function KelolaPengajuan() {
 
       </main>
 
+      {/* Modal Detail Surat & Aksi Update Status */}
       <ModalDetailPengajuan 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -272,6 +315,7 @@ export default function KelolaPengajuan() {
         onUpdateStatus={handleUpdateStatus} 
       />
 
+      {/* Modal Konfirmasi Umum (Popup) */}
       <ConfirmModal 
         isOpen={popupModal.isOpen}
         onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
