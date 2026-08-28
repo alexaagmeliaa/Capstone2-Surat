@@ -42,7 +42,7 @@ export default function ModalKategori({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-20 backdrop-blur-md transition-opacity p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-transparent bg-opacity-20 backdrop-blur-md transition-opacity p-4">
       
       <div className="bg-white w-full max-w-lg rounded-[16px] shadow-2xl overflow-hidden animate-fade-in-up max-h-[90vh] flex flex-col">
         
