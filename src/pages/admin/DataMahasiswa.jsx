@@ -46,7 +46,7 @@ export default function DataMahasiswa() {
     try {
       const response = await fetch('http://localhost:8000/api/admin/mahasiswa', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
           'Accept': 'application/json'
         }
       });
@@ -110,10 +110,7 @@ export default function DataMahasiswa() {
     reader.onload = async (event) => {
       const text = event.target.result;
       
-      // Deteksi pemisah: koma (,) untuk CSV standar atau titik koma (;) untuk CSV Excel Indonesia
       const delimiter = text.includes(';') ? ';' : ','; 
-      
-      // Pecah per baris dan bersihkan dari baris kosong
       const rows = text.split('\n').map(row => row.trim()).filter(row => row);
       
       if (rows.length < 2) {
@@ -122,24 +119,20 @@ export default function DataMahasiswa() {
         return;
       }
 
-      // Ambil array header dan ubah jadi huruf kecil semua untuk pencocokan kunci (key)
       const headers = rows[0].split(delimiter).map(h => h.trim().toLowerCase());
       
       let successCount = 0;
       let failCount = 0;
 
-      // Looping mulai dari baris 1 (karena baris 0 adalah Header)
       for (let i = 1; i < rows.length; i++) {
         const values = rows[i].split(delimiter).map(v => v.trim());
         let item = {};
         
         headers.forEach((header, index) => {
-          // Bersihkan tanda kutip jika data CSV di-wrap pakai string quote ("")
           item[header] = values[index] ? values[index].replace(/^"|"$/g, '') : '';
         });
 
         try {
-          // Sesuaikan dengan struktur form database yang kamu punya
           const payload = {
             name: item.nama || item.name,
             email: item.email || `${item.nim || Date.now()}@student.stmik.ac.id`,
@@ -159,7 +152,7 @@ export default function DataMahasiswa() {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+              'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
               'Accept': 'application/json'
             },
             body: JSON.stringify(payload)
@@ -175,7 +168,6 @@ export default function DataMahasiswa() {
         }
       }
 
-      // Tampilkan hasil akhir import
       setPopupModal({
         isOpen: true,
         type: failCount === 0 ? 'success' : 'warning',
@@ -185,7 +177,6 @@ export default function DataMahasiswa() {
         onConfirm: () => fetchMahasiswa()
       });
 
-      // Reset value input file agar bisa import file yang sama lagi jika perlu
       e.target.value = null;
       setIsLoading(false);
     };
@@ -217,7 +208,7 @@ export default function DataMahasiswa() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
             'Accept': 'application/json'
           },
           body: JSON.stringify({
@@ -277,7 +268,7 @@ export default function DataMahasiswa() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
             'Accept': 'application/json'
           },
           body: JSON.stringify({
@@ -345,7 +336,7 @@ export default function DataMahasiswa() {
       const response = await fetch(`http://localhost:8000/api/admin/mahasiswa/${itemToDelete}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
           'Accept': 'application/json'
         }
       });

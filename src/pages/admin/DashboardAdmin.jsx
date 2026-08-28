@@ -10,7 +10,9 @@ import ConfirmModal from '../../components/ConfirmModal';
 export default function DashboardAdmin() {
   const navigate = useNavigate();
 
-  // State untuk menyimpan data statistik
+  // ==========================================
+  // STATE MANAGEMENT
+  // ==========================================
   const [stats, setStats] = useState({
     totalPengajuan: 0,
     butuhDiproses: 0,
@@ -21,7 +23,7 @@ export default function DashboardAdmin() {
   const [pengajuanTerbaru, setPengajuanTerbaru] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- STATE UNTUK KONTROL MODAL ---
+  // State untuk Kontrol Modal Detail & Popup
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedReq, setSelectedReq] = useState(null);
 
@@ -34,16 +36,25 @@ export default function DashboardAdmin() {
     confirmText: 'Ya, Yakin'
   });
 
+  // ==========================================
+  // LIFECYCLE: AMBIL DATA STATISTIK & TERBARU
+  // ==========================================
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
+  /**
+   * Mengambil data statistik dashboard dan tabel pengajuan terbaru dari API Laravel.
+   * MENGGUNAKAN sessionStorage: Token akses ditarik dari sessionStorage agar sinkron
+   * dengan sesi login admin.
+   */
   const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/admin/dashboard-stats', {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          // Autentikasi token admin via sessionStorage (Bukan localStorage)
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         }
       });
@@ -57,7 +68,7 @@ export default function DashboardAdmin() {
           totalMahasiswa: data.stats.total_mahasiswa
         });
 
-        // Pastikan keperluan dan lampiran ikut dipanggil agar modal detail berfungsi penuh
+        // Memetakan data pengajuan terbaru dari database ke format tabel
         const formattedLatest = (data.terbaru || []).map(item => ({
           id: item.id,
           nama: item.user?.name || 'Mahasiswa',
@@ -80,14 +91,17 @@ export default function DashboardAdmin() {
     }
   };
 
-  // --- FUNGSI UPDATE STATUS LANGSUNG DARI DASHBOARD ---
+  // ==========================================
+  // FUNGSI UPDATE STATUS SURAT LANGSUNG DARI DASHBOARD
+  // ==========================================
   const executeUpdateStatus = async (id, newStatus) => {
     try {
       const response = await fetch(`http://localhost:8000/api/admin/surat/${id}/status`, {
-        method: 'PUT',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          // Autentikasi token admin via sessionStorage
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         },
         body: JSON.stringify({ status: newStatus })
@@ -102,7 +116,7 @@ export default function DashboardAdmin() {
           isOpen: true,
           type: 'success',
           message: `Berhasil! Status pengajuan telah diubah menjadi ${newStatus}.`,
-          onConfirm: () => fetchDashboardData(), // Refresh statistik dashboard
+          onConfirm: () => fetchDashboardData(), // Refresh statistik dashboard secara otomatis
           showCancel: false,
           confirmText: 'OK'
         });
@@ -111,7 +125,7 @@ export default function DashboardAdmin() {
         alert(errorData.message || "Gagal mengubah status surat.");
       }
     } catch (error) {
-      console.error("Error:", error);
+      console.error("Error koneksi server:", error);
       alert("Gagal terhubung ke server saat mengubah status.");
     }
   };
@@ -134,13 +148,18 @@ export default function DashboardAdmin() {
     setIsModalOpen(true);
   };
 
+  // ==========================================
+  // RENDER TAMPILAN (UI)
+  // ==========================================
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans relative">
       
+      {/* Sidebar Navigasi Admin */}
       <Sidebar activeMenu="dashboard" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto">
-        {/* Header */}
+        
+        {/* Header Dashboard */}
         <header className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Dashboard</h2>
@@ -157,14 +176,15 @@ export default function DashboardAdmin() {
           </div>
         </header>
 
-        {/* Banner */}
+        {/* Banner Selamat Datang */}
         <div className="bg-gradient-to-r from-[#3171C6] to-[#183760] rounded-[16px] p-8 mb-8 text-white shadow-sm">
           <h3 className="text-4xl font-bold mb-2">Halo, Admin!</h3>
           <p className="text-[20px] text-white font-light tracking-wide">Berikut adalah ringkasan aktivitas administrasi surat hari ini.</p>
         </div>
 
-        {/* 4 Kartu Statistik */}
+        {/* 4 Kartu Statistik Utama */}
         <div className="grid grid-cols-4 gap-6 mb-8">
+          {/* Card 1: Total Pengajuan */}
           <div className="bg-[#F8F9FA] p-6 rounded-[16px] border-[1.5px] border-gray-300 shadow-[0_8px_15px_rgb(0,0,0,0.05)] flex items-center gap-5">
             <div className="w-[52px] h-[52px] rounded-[12px] bg-[#D6E4F0] flex items-center justify-center text-[#5584B0]">
               <File size={26} strokeWidth={2} />
@@ -175,6 +195,7 @@ export default function DashboardAdmin() {
             </div>
           </div>
 
+          {/* Card 2: Butuh Diproses */}
           <div className="bg-[#F8F9FA] p-6 rounded-[16px] border-[1.5px] border-gray-300 shadow-[0_8px_15px_rgb(0,0,0,0.05)] flex items-center gap-5">
             <div className="w-[52px] h-[52px] rounded-[12px] bg-[#F3EED9] flex items-center justify-center text-[#CDB04A]">
               <Clock size={26} strokeWidth={2} />
@@ -185,6 +206,7 @@ export default function DashboardAdmin() {
             </div>
           </div>
 
+          {/* Card 3: Surat Selesai */}
           <div className="bg-[#F8F9FA] p-6 rounded-[16px] border-[1.5px] border-gray-300 shadow-[0_8px_15px_rgb(0,0,0,0.05)] flex items-center gap-5">
             <div className="w-[52px] h-[52px] rounded-[12px] bg-[#DDF1E4] flex items-center justify-center text-[#55A674]">
               <CheckCircle2 size={26} strokeWidth={2} />
@@ -195,6 +217,7 @@ export default function DashboardAdmin() {
             </div>
           </div>
 
+          {/* Card 4: Total Mahasiswa */}
           <div className="bg-[#F8F9FA] p-6 rounded-[16px] border-[1.5px] border-gray-300 shadow-[0_8px_15px_rgb(0,0,0,0.05)] flex items-center gap-5">
             <div className="w-[52px] h-[52px] rounded-[12px] bg-[#DCE8F5] flex items-center justify-center text-[#5584B0]">
               <Users size={26} strokeWidth={2} />
@@ -242,6 +265,7 @@ export default function DashboardAdmin() {
                       <td className="px-6 py-4 text-[14px] text-black">{item.jenis}</td>
                       <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
                       <td className="px-6 py-4">
+                        {/* Badge Status dengan Warna Dinamis */}
                         <span className={`px-5 py-1 text-[13px] font-medium rounded-full border inline-block ${
                           item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
                           item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :

@@ -3,26 +3,25 @@ import { useLocation } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
 import ConfirmModal from '../../components/ConfirmModal';
 import { FileText, Info, Check, UploadCloud, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import { getUserAvatar } from '../../utils/avatar';
 
 export default function Settings() {
   const location = useLocation();
+  // State untuk menentukan tab aktif ('profil' atau 'notifikasi')
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || 'profil');
 
-  // State data profil dari database
+  // State data profil user & status loading
   const [user, setUser] = useState({});
   const [isLoading, setIsLoading] = useState(true);
-
-  // State untuk Notifikasi Real-Time dari Backend
   const [notifications, setNotifications] = useState([]);
 
+  // Sinkronisasi tab aktif jika berpindah halaman dengan state
   useEffect(() => {
     if (location.state?.activeTab) {
       setActiveTab(location.state.activeTab);
     }
   }, [location.state]);
 
-  // Helper waktu relatif (cth: "2 jam lalu")
+  // Helper untuk mengubah format tanggal menjadi waktu relatif (cth: "2 jam lalu")
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Baru saja';
     const diffMs = new Date() - new Date(dateString);
@@ -37,21 +36,22 @@ export default function Settings() {
     return `${diffDays} hari lalu`;
   };
 
-  // Helper mengambil ID notifikasi yang dibaca oleh admin
+  // Helper untuk mengambil ID notifikasi yang sudah dibaca oleh user dari sessionStorage
   const getReadNotifIds = (uId) => {
     try {
-      const saved = localStorage.getItem(`read_notifs_${uId}`);
+      const saved = sessionStorage.getItem(`read_notifs_${uId}`);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
     }
   };
 
-  // Tarik data profil admin & daftar pengajuan surat dari Backend API
+  // Fungsi utama untuk menarik data profil admin dan daftar surat masuk dari API backend
   const fetchAdminProfileAndNotifs = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      // 🟢 MENGGUNAKAN SESSIONSTORAGE: Mengambil token autentikasi admin
+      const token = sessionStorage.getItem('token');
       if (!token) return;
 
       const headers = {
@@ -59,7 +59,7 @@ export default function Settings() {
         'Accept': 'application/json'
       };
 
-      // 1. Ambil data profil Admin yang sedang login
+      // 1. Fetch data profil user yang sedang login
       const response = await fetch('http://localhost:8000/api/user', { headers });
 
       let currentUid = 'admin_user';
@@ -68,17 +68,17 @@ export default function Settings() {
         setUser(data);
         currentUid = data.id || data.email || 'admin_user';
 
-        // 🔴 PERBAIKAN: Menggunakan ID unik admin untuk mengambil foto
-        const savedImg = localStorage.getItem(`profile_img_${currentUid}`);
+        // Ambil foto profil tersimpan di sessionStorage jika ada
+        const savedImg = sessionStorage.getItem(`profile_img_${currentUid}`);
         setFormData(prev => ({
           ...prev,
           nama: data.name || 'Administrator',
           email: data.email || 'admin@stmik.ac.id',
-          img: savedImg || getUserAvatar(data)
+          img: savedImg || null
         }));
       }
 
-      // 2. Ambil seluruh data pengajuan surat dari semua mahasiswa untuk Notifikasi Admin
+      // 2. Fetch data seluruh surat untuk list notifikasi admin
       const notifRes = await fetch('http://localhost:8000/api/admin/surat', { headers });
       if (notifRes.ok) {
         const suratData = await notifRes.json();
@@ -128,24 +128,25 @@ export default function Settings() {
     }
   };
 
+  // Jalankan fetch data saat komponen pertama kali dimuat
   useEffect(() => {
     fetchAdminProfileAndNotifs();
   }, []);
 
   const formattedName = user.name ? user.name.charAt(0).toUpperCase() + user.name.slice(1) : 'Administrator';
 
-  // --- STATE UTAMA (PROFIL & PASSWORD) ---
+  // State form input untuk nama dan keamanan (password)
   const [formData, setFormData] = useState({
     nama: formattedName,
     email: 'admin@stmik.ac.id',
-    img: getUserAvatar(null),
+    img: null,
     tempImg: null,
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
 
-  // State untuk Popup Modal
+  // State untuk mengontrol pop-up modal informasi/notifikasi
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
     type: 'info',
@@ -164,18 +165,19 @@ export default function Settings() {
     });
   };
 
-  // State untuk Drag & Drop
+  // State dan referensi untuk fitur drag & drop foto profil
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Fungsi untuk menandai semua notifikasi telah dibaca
   const markAllAsRead = () => {
     const uId = user.id || user.email || 'admin_user';
     const allIds = notifications.map(n => n.id);
-    localStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
+    sessionStorage.setItem(`read_notifs_${uId}`, JSON.stringify(allIds));
     setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
   };
 
-  // --- FUNGSI DRAG & DROP FOTO ---
+  // Fungsi menangani file gambar yang diunggah
   const handleFile = (file) => {
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -210,13 +212,14 @@ export default function Settings() {
     }
   };
 
-  // --- FUNGSI SIMPAN PERUBAHAN KE BACKEND API & LOCALSTORAGE ---
+  // --- FUNGSI UTAMA: MENYIMPAN PERUBAHAN PROFIL & PASSWORD KE BACKEND ---
   const handleSaveAll = async (e) => {
     e.preventDefault();
 
     const isChangingPassword = formData.oldPassword || formData.newPassword || formData.confirmPassword;
     const isChangingName = formData.nama && formData.nama !== user.name;
 
+    // Validasi form password jika diisi
     if (isChangingPassword) {
       if (!formData.oldPassword || !formData.newPassword || !formData.confirmPassword) {
         showNotification("Harap lengkapi semua kolom password jika ingin mengubah password!", "warning");
@@ -228,10 +231,11 @@ export default function Settings() {
       }
     }
 
-    // Tembak backend API jika ada perubahan Nama atau Password
+    // Kirim data ke backend jika ada perubahan nama atau password
     if (isChangingPassword || isChangingName) {
       try {
-        const token = localStorage.getItem('token');
+        // 🟢 MENGGUNAKAN SESSIONSTORAGE: Token wajib disertakan agar lolos middleware auth:sanctum
+        const token = sessionStorage.getItem('token');
         const payload = {};
         if (isChangingName) payload.name = formData.nama;
         if (isChangingPassword) {
@@ -262,10 +266,10 @@ export default function Settings() {
       }
     }
 
-    // 🔴 PERBAIKAN: Simpan foto profil ke localStorage menggunakan ID unik
+    // Simpan foto profil sementara ke sessionStorage jika diubah
     if (formData.tempImg) {
       const uId = user.id || user.email || 'admin_user';
-      localStorage.setItem(`profile_img_${uId}`, formData.tempImg);
+      sessionStorage.setItem(`profile_img_${uId}`, formData.tempImg);
       window.dispatchEvent(new Event('profileImageUpdated'));
     }
 
@@ -282,6 +286,7 @@ export default function Settings() {
 
     showNotification(successMessage, "success");
 
+    // Reset form password setelah berhasil
     setFormData(prev => ({
       ...prev,
       tempImg: null,
@@ -291,15 +296,17 @@ export default function Settings() {
     }));
   };
 
-  const avatarSrc = formData.img || getUserAvatar(user);
+  // Menyiapkan inisial huruf pertama untuk avatar jika foto belum ada
+  const currentDisplayName = user.name || formData.nama || 'Administrator';
+  const initialLetter = currentDisplayName.charAt(0).toUpperCase();
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
-      
+      {/* Sidebar Navigasi Admin */}
       <Sidebar activeMenu="setting" />
 
       <main className="flex-1 px-10 py-10 overflow-y-auto">
-        
+        {/* Header Halaman */}
         <header className="flex justify-between items-start mb-8">
           <div>
             <h2 className="text-[44px] font-semibold text-[#2A60A4]">Settings</h2>
@@ -312,8 +319,7 @@ export default function Settings() {
         </header>
 
         <div className="max-w-6xl">
-          
-          {/* Bagian Tabs */}
+          {/* Navigasi Tab (Profil & Notifikasi) */}
           <div className="flex items-end">
             <button 
               onClick={() => setActiveTab('profil')}
@@ -338,33 +344,37 @@ export default function Settings() {
             </button>
           </div>
 
-          {/* Kotak Utama Konten */}
+          {/* Kotak Konten Utama */}
           <div className="bg-[#F4F5F7] border border-gray-600 rounded-b-[12px] rounded-tr-[12px] p-8 md:p-10 shadow-sm relative min-h-[500px]">
             
-            {/* --- ISI TAB PROFIL ADMIN --- */}
+            {/* === KONTEN TAB PROFIL === */}
             {activeTab === 'profil' && (
               <form onSubmit={handleSaveAll} className="flex flex-col lg:flex-row gap-12 animate-fade-in">
-                
-                {/* KIRI: Foto & Drag Drop */}
+                {/* Kolom Kiri: Avatar / Foto & Tombol Upload */}
                 <div className="w-full lg:w-[30%] flex flex-col items-center pt-2">
-                  
-                  {/* Area Drag & Drop Foto */}
                   <div 
                     onDragOver={onDragOver}
                     onDragLeave={onDragLeave}
                     onDrop={onDrop}
                     onClick={() => fileInputRef.current.click()}
                     className={`relative w-52 h-52 rounded-full overflow-hidden border-[4px] shadow-sm mb-6 flex justify-center items-center group cursor-pointer transition-all ${
-                      isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#3470B9] bg-white'
+                      isDragging ? 'border-[#429961] bg-[#E8F5EB]' : 'border-[#2A60A4] bg-[#2A60A4]'
                     }`}
                   >
-                    <img 
-                      src={avatarSrc} 
-                      alt={formattedName} 
-                      className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
-                    />
+                    {formData.img ? (
+                      <img 
+                        src={formData.img} 
+                        alt={currentDisplayName} 
+                        className={`w-full h-full object-cover transition-opacity ${isDragging ? 'opacity-40' : 'opacity-100'}`} 
+                      />
+                    ) : (
+                      // Tampilan Inisial Huruf Jika Belum Ada Foto Profil
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#2A60A4] to-[#183760] text-white select-none">
+                        <span className="text-[72px] font-bold tracking-wider">{initialLetter}</span>
+                      </div>
+                    )}
                     
-                    {/* Overlay saat di hover atau saat dragging */}
+                    {/* Overlay saat gambar di-hover atau di-drag */}
                     <div className={`absolute inset-0 bg-black bg-opacity-40 flex flex-col items-center justify-center transition-opacity ${isDragging ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                       <UploadCloud color="white" size={32} className="mb-2" />
                       <span className="text-white text-[13px] font-semibold text-center px-4">
@@ -384,55 +394,48 @@ export default function Settings() {
 
                   <div className="text-center mb-6">
                     <h3 className="text-[22px] font-bold text-[#182D4A] leading-tight">
-                      {isLoading ? "Memuat..." : (user.name || formData.nama)}
+                      {isLoading ? "Memuat..." : currentDisplayName}
                     </h3>
                     <p className="text-[15px] font-semibold text-[#2A60A4] mt-1">Administrator Campus</p>
                   </div>
 
-                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#3470B9] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#285a96] transition-colors w-full shadow-sm">
+                  <button type="button" onClick={() => fileInputRef.current.click()} className="bg-[#2A60A4] text-white px-5 py-3 rounded-[8px] text-[15px] font-medium hover:bg-[#1f4b82] transition-colors w-full shadow-sm">
                     Upload Foto Baru
                   </button>
                 </div>
 
-                {/* KANAN: Form Informasi Pegawai & Keamanan */}
+                {/* Kolom Kanan: Informasi Akun & Form Ubah Password */}
                 <div className="w-full lg:w-[70%]">
                   <h4 className="text-[18px] font-bold text-[#182D4A] border-b border-gray-300 pb-2 mb-6">Informasi Pegawai (Dari Database)</h4>
                   
-                  {/* Grid Informasi Pegawai */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
-                    
-                    {/* BISA DI EDIT */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Nama Lengkap</label>
                       <input 
                         type="text" 
                         value={formData.nama} 
                         onChange={(e) => setFormData({...formData, nama: e.target.value})}
-                        className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all font-medium" 
+                        className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all font-medium" 
                       />
                     </div>
 
-                    {/* TERKUNCI */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Role Akses</label>
                       <input type="text" value={user.role || 'Admin'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-semibold capitalize select-none" />
                     </div>
                     
-                    {/* TERKUNCI */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Email Operasional</label>
                       <input type="email" value={user.email || 'admin@stmik.ac.id'} disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 text-gray-600 cursor-not-allowed font-medium select-none" />
                     </div>
 
-                    {/* TERKUNCI */}
                     <div>
                       <label className="block text-[15px] font-semibold text-gray-800 mb-2">Status Sistem</label>
                       <input type="text" value="Aktif / Online" disabled className="w-full bg-[#D1D5DB] border border-gray-400 rounded-[8px] px-4 py-3 cursor-not-allowed font-bold text-green-700 select-none" />
                     </div>
-
                   </div>
 
-                  {/* Form Ganti Password */}
+                  {/* Bagian Keamanan / Ubah Password */}
                   <div className="pt-8 mt-8 border-t border-gray-300">
                     <h4 className="text-[18px] font-bold text-[#182D4A] mb-5">Ubah Keamanan Akun</h4>
                     
@@ -444,7 +447,7 @@ export default function Settings() {
                           value={formData.oldPassword}
                           onChange={(e) => setFormData({...formData, oldPassword: e.target.value})}
                           placeholder="Masukkan password saat ini..." 
-                          className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                          className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all" 
                         />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -455,7 +458,7 @@ export default function Settings() {
                             value={formData.newPassword}
                             onChange={(e) => setFormData({...formData, newPassword: e.target.value})}
                             placeholder="Buat password baru..." 
-                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all" 
                           />
                         </div>
                         <div>
@@ -465,28 +468,26 @@ export default function Settings() {
                             value={formData.confirmPassword}
                             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
                             placeholder="Ulangi password baru..." 
-                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#3470B9] transition-all" 
+                            className="w-full bg-[#C9CCCB] border border-gray-600 rounded-[8px] px-4 py-3 text-gray-800 outline-none focus:border-[#2A60A4] transition-all" 
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Tombol Simpan Perubahan Utama */}
+                    {/* Tombol Simpan Perubahan */}
                     <div className="flex justify-end pt-8">
-                      <button type="submit" className="bg-[#3470B9] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#285a96] transition-colors shadow-sm">
+                      <button type="submit" className="bg-[#2A60A4] text-white px-8 py-3 rounded-[8px] font-medium text-[15px] hover:bg-[#1f4b82] transition-colors shadow-sm">
                         Simpan Perubahan
                       </button>
                     </div>
                   </div>
-
                 </div>
               </form>
             )}
 
-            {/* --- ISI TAB NOTIFIKASI WEB (ADMIN) --- */}
+            {/* === KONTEN TAB NOTIFIKASI === */}
             {activeTab === 'notifikasi' && (
               <div className="animate-fade-in w-full">
-                
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-300">
                   <div>
                     <h3 className="text-[22px] font-bold text-[#182D4A]">Riwayat Aktivitas Pengajuan Surat</h3>
@@ -543,15 +544,13 @@ export default function Settings() {
                     </div>
                   )}
                 </div>
-
               </div>
             )}
-
           </div>
         </div>
-
       </main>
 
+      {/* Komponen Modal Popup Notifikasi/Pesan */}
       <ConfirmModal 
         isOpen={popupModal.isOpen}
         onClose={() => setPopupModal(prev => ({ ...prev, isOpen: false }))}
@@ -561,6 +560,7 @@ export default function Settings() {
         confirmText={popupModal.confirmText}
       />
 
+      {/* Styling Animasi CSS Sederhana */}
       <style dangerouslySetInnerHTML={{__html: `
         .animate-fade-in {
           animation: fadeIn 0.3s ease-in-out;

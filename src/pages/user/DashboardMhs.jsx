@@ -20,7 +20,8 @@ export default function DashboardMhs() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        // Menggunakan sessionStorage agar terisolasi per tab browser
+        const token = sessionStorage.getItem('token');
         
         // 1. Ambil data surat mahasiswa yang sedang login
         const responseSurat = await fetch('http://localhost:8000/api/mahasiswa/surat', {
@@ -35,7 +36,6 @@ export default function DashboardMhs() {
           const arrayData = Array.isArray(dataSurat) ? dataSurat : (dataSurat.data || []);
           
           const formatted = arrayData.map(item => {
-            // Normalisasi status ke huruf kecil agar tidak error jika backend kirim huruf besar
             const rawStatus = (item.status || '').toLowerCase();
             let finalStatus = 'Pending';
 
@@ -134,7 +134,7 @@ export default function DashboardMhs() {
           <div>
             <h3 className="text-4xl font-bold mb-2">Halo, {formattedName}!</h3>
             <p className="text-[18px] text-white font-light tracking-wide opacity-90">
-              {user.prodi || 'Teknik Informatika'} • {user.nim || '-'}
+              {user.prodi || 'Teknik Informatika'} • {user.nim || user.email || '-'}
             </p>
           </div>
           
@@ -218,12 +218,11 @@ export default function DashboardMhs() {
                       </td>
                       <td className="px-6 py-4 text-[14px] text-black">{item.tanggal}</td>
                       <td className="px-6 py-4">
-                        {/* Perbaikan Warna Badge: Sekarang menampilkan merah jika Ditolak */}
                         <span className={`px-5 py-1 text-[13px] font-medium rounded-full border ${
                           item.status === 'Pending' ? 'border-[#D9A036] text-[#D9A036] bg-[#FDF8E9]' :
                           item.status === 'Diproses' ? 'border-[#2A60A4] text-[#2A60A4] bg-[#E8F0FA]' :
                           item.status === 'Ditolak' ? 'border-[#E05252] text-[#E05252] bg-[#FCEAEA]' :
-                          'border-[#429961] text-[#429961] bg-[#E8F5EB]' // Selesai
+                          'border-[#429961] text-[#429961] bg-[#E8F5EB]'
                         }`}>
                           {item.status}
                         </span>

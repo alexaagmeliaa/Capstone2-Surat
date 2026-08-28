@@ -6,21 +6,21 @@ export default function NotificationDropdown({ role = 'admin' }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
 
-  // State untuk menyimpan notifikasi
+  // State untuk menyimpan daftar notifikasi dan ID unik user aktif
   const [notifications, setNotifications] = useState([]);
   const [uId, setUid] = useState(null);
 
-  // Helper mengambil ID notifikasi yang dibaca dari LocalStorage
+  // Helper untuk mengambil ID notifikasi yang sudah dibaca dari sessionStorage
   const getReadNotifIds = (userId) => {
     try {
-      const saved = localStorage.getItem(`read_notifs_${userId}`);
+      const saved = sessionStorage.getItem(`read_notifs_${userId}`);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
     }
   };
 
-  // Helper waktu relatif
+  // Helper untuk mengubah format waktu menjadi relatif (cth: "2 jam lalu")
   const getRelativeTime = (dateString) => {
     if (!dateString) return 'Baru saja';
     const diffMs = new Date() - new Date(dateString);
@@ -35,18 +35,19 @@ export default function NotificationDropdown({ role = 'admin' }) {
     return `${diffDays} hari lalu`;
   };
 
-  // Tarik data notifikasi dari Backend
+  // Fungsi utama untuk menarik data notifikasi dari Backend API
   const loadNotifications = async () => {
     try {
-      const token = localStorage.getItem('token');
+      // 🟢 MENGGUNAKAN SESSIONSTORAGE: Mengambil token autentikasi yang sesuai
+      const token = sessionStorage.getItem('token');
       if (!token) return;
 
+      // Menyesuaikan endpoint berdasarkan role ('admin' atau 'mahasiswa')
       const endpointSurat = role === 'admin' 
         ? 'http://localhost:8000/api/admin/surat' 
         : 'http://localhost:8000/api/mahasiswa/surat';
 
-      // JURUS AMPUH: Tarik profil user dan notifikasi secara serentak (Promise.all)
-      // Ini memastikan kita 100% mendapatkan UID yang valid, tidak nyangkut di 'guest'
+      // Tarik data user dan data surat secara serentak (Promise.all)
       const [resUser, resSurat] = await Promise.all([
         fetch('http://localhost:8000/api/user', {
           headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
@@ -56,13 +57,12 @@ export default function NotificationDropdown({ role = 'admin' }) {
         })
       ]);
 
-      // Evaluasi UID User
       let activeUid = role === 'admin' ? 'admin_user' : 'guest';
       if (resUser.ok) {
         const userData = await resUser.json();
         activeUid = userData.id || userData.email || activeUid;
-        setUid(activeUid); // Kunci UID untuk fungsi markAllAsRead
-        localStorage.setItem('cached_user_data', JSON.stringify(userData)); // Perbarui cache
+        setUid(activeUid);
+        sessionStorage.setItem('cached_user_data', JSON.stringify(userData));
       }
 
       if (resSurat.ok) {
@@ -70,11 +70,9 @@ export default function NotificationDropdown({ role = 'admin' }) {
         const arraySurat = Array.isArray(dataSurat) ? dataSurat : (dataSurat.data || []);
         
         const readIds = getReadNotifIds(activeUid);
-
-        // PERBAIKAN FORMAT ID: Pastikan singkatan 'mhs' persis sama dengan halaman Settings
         const prefix = role === 'admin' ? 'admin' : 'mhs';
 
-        // Format data mentah
+        // Format data surat menjadi bentuk notifikasi yang mudah dibaca
         const formatted = arraySurat.map(surat => {
           const notifId = `${prefix}_surat_${surat.id}_${surat.status}`;
           const jenisSurat = surat.jenis_surat || surat.judul_surat || 'Surat Pengantar';
@@ -97,6 +95,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
               message = `Pengajuan ${jenisSurat} milik ${mhsName} telah ditolak.`;
             }
           } else {
+            // Logika pesan notifikasi untuk sisi Mahasiswa secara real-time
             if (surat.status === 'Selesai') {
               message = `Hore! Pengajuan ${jenisSurat} Anda telah selesai diproses!`;
             } else if (surat.status === 'Ditolak') {
@@ -119,6 +118,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
           };
         });
 
+        // Urutkan dari yang paling baru
         formatted.sort((a, b) => b.timestamp - a.timestamp);
         setNotifications(formatted);
       }
@@ -127,12 +127,18 @@ export default function NotificationDropdown({ role = 'admin' }) {
     }
   };
 
+  // 🟢 POLLING AUTO-REFRESH SETIAP 5 DETIK: Memperbarui notifikasi secara otomatis
   useEffect(() => {
     loadNotifications();
+
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [role]);
 
-  const unreadCount = notifications.filter(notif => !notif.isRead).length;
-
+  // Menutup dropdown jika pengguna mengklik di luar area komponen
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -143,12 +149,14 @@ export default function NotificationDropdown({ role = 'admin' }) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fungsi menandai semua sudah dibaca
+  // Menghitung jumlah notifikasi yang belum dibaca
+  const unreadCount = notifications.filter(notif => !notif.isRead).length;
+
+  // Fungsi untuk menandai seluruh notifikasi sudah dibaca
   const markAllAsRead = () => {
-    // Kalau uId belum ada, tarik manual dari cache sebagai pencegahan terakhir
     let currentUid = uId;
     if (!currentUid) {
-      const cached = localStorage.getItem('cached_user_data');
+      const cached = sessionStorage.getItem('cached_user_data');
       if (cached) {
         const parsed = JSON.parse(cached);
         currentUid = parsed.id || parsed.email;
@@ -158,10 +166,11 @@ export default function NotificationDropdown({ role = 'admin' }) {
     }
 
     const allIds = notifications.map(n => n.id);
-    localStorage.setItem(`read_notifs_${currentUid}`, JSON.stringify(allIds));
+    sessionStorage.setItem(`read_notifs_${currentUid}`, JSON.stringify(allIds));
     setNotifications(notifications.map(notif => ({ ...notif, isRead: true })));
   };
 
+  // Menentukan jalur redirect ke halaman pengaturan/setting sesuai role
   const settingPath = role === 'mahasiswa' ? '/mhs/setting' : '/ad/setting';
 
   const renderMessageText = (notif) => {
@@ -180,26 +189,26 @@ export default function NotificationDropdown({ role = 'admin' }) {
   return (
     <div className="relative" ref={dropdownRef}>
       
-      {/* Tombol Lonceng (Bell) */}
+      {/* Tombol Lonceng (Bell) di Header */}
       <button 
         onClick={() => setIsOpen(!isOpen)}
         className="relative w-12 h-12 flex items-center justify-center rounded-full border-[1.5px] border-[#2A60A4] text-[#2A60A4] bg-[#F4F5F7] hover:bg-blue-50 transition-colors focus:outline-none"
       >
         <Bell size={22} fill="currentColor" strokeWidth={1} />
         
-        {/* Badge merah jika ada notifikasi belum dibaca */}
+        {/* Badge Merah indikator notifikasi belum dibaca */}
         {unreadCount > 0 && (
           <span className="absolute top-0 right-0 block w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full"></span>
         )}
       </button>
 
-      {/* Kotak Dropdown Notifikasi */}
+      {/* Kotak Kotak Dropdown Notifikasi */}
       {isOpen && (
         <div className="absolute right-0 mt-3 w-[420px] bg-[#F4F5F7] border border-gray-300 rounded-[16px] shadow-2xl z-50 overflow-hidden flex flex-col">
           
           <div className="absolute -top-2 right-4 w-4 h-4 bg-[#EAECEF] rotate-45 border-t border-l border-gray-300 z-0"></div>
 
-          {/* Header */}
+          {/* Header Dropdown */}
           <div className="bg-[#EAECEF] px-5 py-4 flex justify-between items-center border-b border-gray-300 relative z-10">
             <h3 className="text-[15px] font-bold text-gray-800 tracking-wide">NOTIFIKASI</h3>
             <button 
@@ -210,7 +219,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
             </button>
           </div>
 
-          {/* Body / List Notifikasi */}
+          {/* Bagian Daftar Isi Notifikasi */}
           <div className="p-4 flex flex-col gap-3 max-h-[350px] overflow-y-auto bg-[#F4F5F7] relative z-10 custom-scrollbar">
             {notifications.length > 0 ? (
               notifications.map((notif) => (
@@ -222,14 +231,14 @@ export default function NotificationDropdown({ role = 'admin' }) {
                       : 'bg-[#D6E4F0] border-[#3470B9]' 
                   }`}
                 >
-                  {/* Icon */}
+                  {/* Icon Notifikasi */}
                   <div className={`p-2.5 rounded-full flex-shrink-0 flex items-center justify-center ${
                     notif.isRead ? 'bg-gray-400 text-gray-700' : 'bg-[#3470B9] text-white'
                   }`}>
                     {notif.type === 'pengajuan' ? <FileText size={18} /> : <Info size={18} />}
                   </div>
 
-                  {/* Teks Pesan */}
+                  {/* Teks Pesan Notifikasi */}
                   <div className="flex-1 text-[13.5px] leading-snug">
                     {renderMessageText(notif)}
                   </div>
@@ -242,7 +251,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer Dropdown */}
           <div className="bg-[#EAECEF] py-3 text-center border-t border-gray-300 relative z-10">
             <Link 
                 to={settingPath} 
@@ -256,6 +265,7 @@ export default function NotificationDropdown({ role = 'admin' }) {
         </div>
       )}
 
+      {/* Styling Kustom Scrollbar */}
       <style dangerouslySetInnerHTML={{__html: `
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
