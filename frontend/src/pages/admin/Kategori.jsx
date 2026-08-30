@@ -4,7 +4,7 @@ import NotificationDropdown from '../../components/NotificationDropdown';
 import Sidebar from '../../components/Sidebar';
 import ModalKategori from '../../components/ModalKategori'; 
 import ConfirmModal from '../../components/ConfirmModal';
-import { Search, Plus, Edit, Trash2, X } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, X, AlertCircle } from 'lucide-react';
 
 export default function Kategori() {
   const [kategoriSurat, setKategoriSurat] = useState([]);
@@ -40,7 +40,6 @@ export default function Kategori() {
       const data = await response.json();
       if (response.ok && data.success) {
         // Mengurutkan data berdasarkan ID dari kecil ke besar (ASCENDING)
-        // Agar data yang pertama kali ditambahkan tetap berada di nomor 1
         const sortedData = (data.data || []).sort((a, b) => a.id - b.id);
 
         const formatted = sortedData.map(item => ({
@@ -49,6 +48,7 @@ export default function Kategori() {
           nama: item.nama_kategori,
           jenis_kategori: item.jenis_kategori || '',
           deskripsi: item.deskripsi || '-',
+          catatan: item.catatan || '', // MENGAMBIL DATA CATATAN DARI DATABASE
           status: item.status !== undefined ? item.status : 1
         }));
         setKategoriSurat(formatted);
@@ -62,12 +62,10 @@ export default function Kategori() {
 
   // Fungsi Pencarian & Filter Klasifikasi Gabungan
   const filteredKategori = kategoriSurat.filter((item) => {
-    // 1. Filter berdasarkan Tab Klasifikasi
     const matchKlasifikasi = 
       filterKlasifikasi === 'Semua' || 
       (item.jenis_kategori && item.jenis_kategori.toLowerCase() === filterKlasifikasi.toLowerCase());
 
-    // 2. Filter berdasarkan Input Pencarian (Search)
     const matchSearch = 
       item.nama.toLowerCase().includes(searchTerm.toLowerCase()) || 
       item.deskripsi.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -79,7 +77,8 @@ export default function Kategori() {
 
   const openAddModal = () => {
     setModalMode('add');
-    setSelectedKategori({ id: null, kode_kategori: '', nama: '', jenis_kategori: '', deskripsi: '', status: true }); 
+    // Menambahkan inisialisasi catatan kosong saat tambah baru
+    setSelectedKategori({ id: null, kode_kategori: '', nama: '', jenis_kategori: '', deskripsi: '', catatan: '', status: true }); 
     setIsModalOpen(true);
   };
 
@@ -101,6 +100,7 @@ export default function Kategori() {
       const deskripsiValue = formData.deskripsi || formData.keterangan || formData.description || '';
       const kodeValue = formData.kode_kategori || formData.kode || '';
       const jenisValue = formData.jenis_kategori || formData.jenis || '';
+      const catatanValue = formData.catatan || ''; // MENGIRIM DATA CATATAN
       const statusValue = formData.status !== undefined ? (formData.status ? 1 : 0) : 1;
 
       const response = await fetch(url, {
@@ -115,6 +115,7 @@ export default function Kategori() {
           nama_kategori: formData.nama || formData.nama_kategori,
           jenis_kategori: jenisValue,
           deskripsi: deskripsiValue,
+          catatan: catatanValue, // PAYLOAD CATATAN
           status: statusValue
         })
       });
@@ -226,18 +227,20 @@ export default function Kategori() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
+                {/* Menyesuaikan lebar kolom untuk mengakomodasi kolom Syarat Lampiran */}
                 <tr className="bg-[#E2E4E8] text-black text-[15px] border-b-[1.5px] border-gray-400">
                   <th className="px-6 py-4 font-semibold w-[5%] text-center">No</th>
-                  <th className="px-6 py-4 font-semibold w-[15%]">Kode</th>
-                  <th className="px-6 py-4 font-semibold w-[30%]">Nama Kategori</th>
-                  <th className="px-6 py-4 font-semibold w-[35%]">Deskripsi / Keterangan</th>
+                  <th className="px-6 py-4 font-semibold w-[10%]">Kode</th>
+                  <th className="px-6 py-4 font-semibold w-[25%]">Nama Kategori</th>
+                  <th className="px-6 py-4 font-semibold w-[25%]">Deskripsi / Keterangan</th>
+                  <th className="px-6 py-4 font-semibold w-[20%]">Syarat Lampiran</th>
                   <th className="px-6 py-4 font-semibold w-[15%] text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y-[1.5px] divide-gray-400">
                 {isLoading ? (
                   <tr>
-                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium">
+                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500 font-medium">
                       Memuat data...
                     </td>
                   </tr>
@@ -258,9 +261,22 @@ export default function Kategori() {
                           </span>
                         )}
                       </td>
-                      <td className="px-6 py-5 text-[14px] text-gray-700 leading-relaxed pr-10">
+                      <td className="px-6 py-5 text-[14px] text-gray-700 leading-relaxed pr-6">
                         {item.deskripsi}
                       </td>
+                      
+                      {/* KOLOM BARU: SYARAT LAMPIRAN */}
+                      <td className="px-6 py-5 text-[13px]">
+                        {item.catatan ? (
+                          <div className="flex items-start gap-1.5 text-[#D9A036]">
+                            <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                            <span className="font-semibold leading-snug">{item.catatan}</span>
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 italic">Tidak ada</span>
+                        )}
+                      </td>
+
                       <td className="px-6 py-5">
                         <div className="flex justify-center gap-3">
                           <button 
@@ -284,7 +300,7 @@ export default function Kategori() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="5" className="px-6 py-10 text-center text-gray-500 font-medium italic">
+                    <td colSpan="6" className="px-6 py-10 text-center text-gray-500 font-medium italic">
                       {searchTerm || filterKlasifikasi !== 'Semua'
                         ? `Tidak ada kategori surat yang cocok dengan filter atau pencarian saat ini.` 
                         : "Belum ada kategori surat yang ditambahkan."}

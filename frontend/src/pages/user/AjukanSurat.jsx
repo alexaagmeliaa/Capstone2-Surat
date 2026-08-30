@@ -103,7 +103,6 @@ export default function AjukanSurat() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // PERBAIKAN: Hapus validasi !tujuanSurat agar form tetap bisa dikirim meski dikosongkan
     if (!jenisSurat || !keperluan) {
       showNotification("Harap lengkapi jenis surat dan keperluan pengajuan!", "warning");
       return;
@@ -112,7 +111,6 @@ export default function AjukanSurat() {
     const formData = new FormData();
     formData.append('jenis_surat', jenisSurat);
     
-    // Hanya kirim tujuanSurat jika memang diisi oleh mahasiswa
     if (tujuanSurat) {
       formData.append('tujuan_surat', tujuanSurat); 
     }
@@ -154,6 +152,9 @@ export default function AjukanSurat() {
       showNotification("Gagal terhubung ke server backend! Pastikan backend menyala.", "danger");
     }
   };
+
+  // Mencari catatan dari kategori surat yang sedang dipilih saat ini
+  const selectedKategoriData = jenisSuratList.find(kat => kat.nama_kategori === jenisSurat);
 
   return (
     <div className="flex min-h-screen bg-[#F4F5F7] font-sans">
@@ -243,6 +244,19 @@ export default function AjukanSurat() {
                       <FileType size={20} />
                     </div>
                   </div>
+
+                  {/* TAMBAHAN: Alert Dinamis untuk Syarat Lampiran */}
+                  {selectedKategoriData && selectedKategoriData.catatan && (
+                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-[10px] flex items-start gap-3 transition-all duration-300">
+                      <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
+                      <div>
+                        <span className="block text-[13.5px] font-bold text-amber-900 mb-0.5">Syarat Lampiran Khusus:</span>
+                        <p className="text-[13.5px] text-amber-800 leading-relaxed font-medium">
+                          {selectedKategoriData.catatan}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* --- INPUT INSTANSI / PERUSAHAAN (OPSIONAL) --- */}

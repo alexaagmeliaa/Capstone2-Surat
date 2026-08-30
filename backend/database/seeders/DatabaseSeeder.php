@@ -108,15 +108,6 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'tu@stmik.ac.id'],
-            [
-                'name' => 'Staf TU Akademik',
-                'password' => bcrypt('admin123'),
-                'plain_password' => 'admin123',
-                'role' => 'admin',
-            ]
-        );
 
 
         // ==========================================
@@ -126,8 +117,9 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Surat Keterangan Aktif Kuliah'],
             [
                 'kode_kategori' => 'SKAK',
-                'jenis_kategori' => 'Keterangan',
+                'jenis_kategori' => 'Surat Keterangan',
                 'deskripsi' => 'Surat permohonan keterangan mahasiswa aktif untuk keperluan beasiswa, tunjangan gaji orang tua, atau dinas.',
+                'catatan' => 'Lampiran opsional fotokopi slip pembayaran SPP semester terakhir.',
                 'status' => true
             ]
         );
@@ -136,8 +128,9 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Surat Pengantar Magang / PKL'],
             [
                 'kode_kategori' => 'SPM',
-                'jenis_kategori' => 'Pengantar',
+                'jenis_kategori' => 'Surat Pengantar',
                 'deskripsi' => 'Surat permohonan pengantar dari kampus untuk instansi/perusahaan tempat pelaksanaan Magang atau Praktik Kerja Lapangan.',
+                'catatan' => '',
                 'status' => true
             ]
         );
@@ -146,8 +139,9 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Surat Izin Penelitian Skripsi'],
             [
                 'kode_kategori' => 'SIPS',
-                'jenis_kategori' => 'Izin',
+                'jenis_kategori' => 'Surat Pengatar',
                 'deskripsi' => 'Surat permohonan izin pengambilan data / penelitian di instansi untuk keperluan Tugas Akhir atau Skripsi.',
+                'catatan' => 'Wajib melampirkan fotokopi form pengajuan judul skripsi yang telah disetujui.',
                 'status' => true
             ]
         );
@@ -156,8 +150,9 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Surat Keterangan Kelakuan Baik'],
             [
                 'kode_kategori' => 'SKKB',
-                'jenis_kategori' => 'Keterangan',
+                'jenis_kategori' => 'Surat Keterangan',
                 'deskripsi' => 'Surat keterangan dari pihak kampus yang menyatakan mahasiswa tidak pernah melakukan pelanggaran disiplin.',
+                'catatan' => 'Lampiran opsional fotokopi KTP dan KTM.',
                 'status' => true
             ]
         );
@@ -166,8 +161,53 @@ class DatabaseSeeder extends Seeder
             ['nama_kategori' => 'Surat Cuti Akademik'],
             [
                 'kode_kategori' => 'SCA',
-                'jenis_kategori' => 'Permohonan',
+                'jenis_kategori' => 'Surat Permohonan',
                 'deskripsi' => 'Surat permohonan izin penghentian studi sementara (cuti akademik) untuk semester berjalan.',
+                'catatan' => 'Wajib melampirkan surat permohonan cuti yang ditandatangani orang tua/wali mahasiswa.',
+                'status' => true
+            ]
+        );
+
+        $kat6 = KategoriSurat::firstOrCreate(
+            ['nama_kategori' => 'Surat Permohonan Beasiswa'],
+            [
+                'kode_kategori' => 'SPB',
+                'jenis_kategori' => 'Surat Permohonan',
+                'deskripsi' => 'Surat yang diajukan mahasiswa untuk memohon bantuan atau dukungan biaya pendidikan melalui program beasiswa yang tersedia.',
+                'catatan' => 'Wajib melampirkan transkrip nilai terakhir, fotokopi KTP, dan dokumen pendukung lainnya sesuai syarat beasiswa.',
+                'status' => true
+            ]
+        );
+
+        $kat7 = KategoriSurat::firstOrCreate(
+            ['nama_kategori' => 'Surat Permohonan Seminar/Sidang Skripsi'],
+            [
+                'kode_kategori' => 'SPS',
+                'jenis_kategori' => 'Surat Permohonan',
+                'deskripsi' => 'Surat permohonan izin menghadiri seminar atau sidang skripsi.',
+                'catatan' => '', 
+                'status' => true
+            ]
+        );
+
+        $kat8 = KategoriSurat::firstOrCreate(
+            ['nama_kategori' => 'Surat Keterangan Lulus'],
+            [
+                'kode_kategori' => 'SKL',
+                'jenis_kategori' => 'Surat Keterangan',
+                'deskripsi' => 'Surat keterangan yang menyatakan mahasiswa telah lulus dari program studi.',
+                'catatan' => '', 
+                'status' => true
+            ]
+        );
+
+        $kat9 = KategoriSurat::firstOrCreate(
+            ['nama_kategori' => 'Surat Permohonan Cuti'],
+            [
+                'kode_kategori' => 'SPC',
+                'jenis_kategori' => 'Surat Permohonan',
+                'deskripsi' => 'Surat yang diajukan mahasiswa untuk memohon izin cuti akademik kepada pihak perguruan tinggi sesuai dengan alasan dan ketentuan yang berlaku.',
+                'catatan' => 'Wajib melampirkan surat permohonan yang telah ditandatangani mahasiswa dan orang tua atau wali serta mendapatkan persetujuan dari pihak terkait.',
                 'status' => true
             ]
         );

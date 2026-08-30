@@ -1,5 +1,6 @@
-/vendor/
+vendor
+manual_book
 
 
-/composer.json/
-/composer.lock/
+composer.json
+composer.lock
