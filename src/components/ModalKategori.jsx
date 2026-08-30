@@ -14,6 +14,7 @@ export default function ModalKategori({
     nama: '', 
     jenis_kategori: '', 
     deskripsi: '', 
+    catatan: '', // TAMBAHAN: State untuk syarat lampiran
     status: true 
   };
   
@@ -27,6 +28,7 @@ export default function ModalKategori({
         nama: initialData.nama || initialData.nama_kategori || '',
         jenis_kategori: initialData.jenis_kategori || '',
         deskripsi: initialData.deskripsi || '',
+        catatan: initialData.catatan || '', // TAMBAHAN: Membaca data catatan jika mode edit
         status: initialData.status !== undefined ? Boolean(initialData.status) : true
       });
     } else {
@@ -115,6 +117,18 @@ export default function ModalKategori({
               value={formData.deskripsi}
               onChange={(e) => setFormData({ ...formData, deskripsi: e.target.value })}
               placeholder="Tuliskan keterangan kegunaan surat ini..."
+              className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium resize-none"
+            ></textarea>
+          </div>
+
+          {/* TAMBAHAN: Catatan / Syarat Lampiran */}
+          <div>
+            <label className="block text-[14px] font-semibold text-gray-700 mb-1">Syarat Lampiran <span className="text-sm font-normal text-gray-500">(Opsional)</span></label>
+            <textarea 
+              rows="2"
+              value={formData.catatan}
+              onChange={(e) => setFormData({ ...formData, catatan: e.target.value })}
+              placeholder="Contoh: Wajib melampirkan fotokopi KTP / Transkrip Nilai..."
               className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium resize-none"
             ></textarea>
           </div>
