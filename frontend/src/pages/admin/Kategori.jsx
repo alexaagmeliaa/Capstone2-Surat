@@ -39,7 +39,6 @@ export default function Kategori() {
       });
       const data = await response.json();
       if (response.ok && data.success) {
-        // Mengurutkan data berdasarkan ID dari kecil ke besar (ASCENDING)
         const sortedData = (data.data || []).sort((a, b) => a.id - b.id);
 
         const formatted = sortedData.map(item => ({
@@ -48,7 +47,7 @@ export default function Kategori() {
           nama: item.nama_kategori,
           jenis_kategori: item.jenis_kategori || '',
           deskripsi: item.deskripsi || '-',
-          catatan: item.catatan || '', // MENGAMBIL DATA CATATAN DARI DATABASE
+          catatan: item.syarat_lampiran || item.catatan || '', // Memetakan database syarat_lampiran ke state catatan
           status: item.status !== undefined ? item.status : 1
         }));
         setKategoriSurat(formatted);
@@ -60,7 +59,6 @@ export default function Kategori() {
     }
   };
 
-  // Fungsi Pencarian & Filter Klasifikasi Gabungan
   const filteredKategori = kategoriSurat.filter((item) => {
     const matchKlasifikasi = 
       filterKlasifikasi === 'Semua' || 
@@ -77,14 +75,17 @@ export default function Kategori() {
 
   const openAddModal = () => {
     setModalMode('add');
-    // Menambahkan inisialisasi catatan kosong saat tambah baru
     setSelectedKategori({ id: null, kode_kategori: '', nama: '', jenis_kategori: '', deskripsi: '', catatan: '', status: true }); 
     setIsModalOpen(true);
   };
 
   const openEditModal = (kategori) => {
     setModalMode('edit');
-    setSelectedKategori(kategori); 
+    // Normalisasi data agar modal bisa membaca syarat_lampiran dengan benar
+    setSelectedKategori({
+      ...kategori,
+      catatan: kategori.catatan || kategori.syarat_lampiran || ''
+    }); 
     setIsModalOpen(true);
   };
 
@@ -100,7 +101,9 @@ export default function Kategori() {
       const deskripsiValue = formData.deskripsi || formData.keterangan || formData.description || '';
       const kodeValue = formData.kode_kategori || formData.kode || '';
       const jenisValue = formData.jenis_kategori || formData.jenis || '';
-      const catatanValue = formData.catatan || ''; // MENGIRIM DATA CATATAN
+      
+      // Mengambil teks dari input catatan modal secara langsung
+      const syaratLampiranValue = formData.catatan || formData.syarat_lampiran || ''; 
       const statusValue = formData.status !== undefined ? (formData.status ? 1 : 0) : 1;
 
       const response = await fetch(url, {
@@ -115,7 +118,7 @@ export default function Kategori() {
           nama_kategori: formData.nama || formData.nama_kategori,
           jenis_kategori: jenisValue,
           deskripsi: deskripsiValue,
-          catatan: catatanValue, // PAYLOAD CATATAN
+          syarat_lampiran: syaratLampiranValue, // Pastikan key yang dikirim ke Laravel adalah syarat_lampiran
           status: statusValue
         })
       });
@@ -137,7 +140,6 @@ export default function Kategori() {
     setIsDeleteModalOpen(true);
   };
 
-  // --- HAPUS KATEGORI DARI DATABASE ---
   const confirmDelete = async () => {
     try {
       const response = await fetch(`http://localhost:8000/api/admin/kategori-surat/${itemToDelete}`, {
@@ -227,7 +229,6 @@ export default function Kategori() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                {/* Menyesuaikan lebar kolom untuk mengakomodasi kolom Syarat Lampiran */}
                 <tr className="bg-[#E2E4E8] text-black text-[15px] border-b-[1.5px] border-gray-400">
                   <th className="px-6 py-4 font-semibold w-[5%] text-center">No</th>
                   <th className="px-6 py-4 font-semibold w-[10%]">Kode</th>
@@ -265,7 +266,7 @@ export default function Kategori() {
                         {item.deskripsi}
                       </td>
                       
-                      {/* KOLOM BARU: SYARAT LAMPIRAN */}
+                      {/* KOLOM SYARAT LAMPIRAN */}
                       <td className="px-6 py-5 text-[13px]">
                         {item.catatan ? (
                           <div className="flex items-start gap-1.5 text-[#D9A036]">
@@ -328,7 +329,6 @@ export default function Kategori() {
         message="Apakah anda yakin ingin menghapus kategori ini?"
         type="danger"
       />
-
     </div>
   );
 }

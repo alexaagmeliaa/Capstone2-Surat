@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Surat;
 use App\Models\User;
+use App\Models\KategoriSurat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -11,33 +12,32 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class SuratController extends Controller
 {
-    // Mahasiswa mengajukan surat
+    // Mahasiswa mengajukan surat (Support Multiple Files)
     public function ajukan(Request $request)
     {
         $request->validate([
             'jenis_surat' => 'required|string|max:255',
             'keperluan' => 'required|string',
             'tujuan_surat' => 'required|string', 
-            'lampiran' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
+            'lampiran.*' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:2048',
         ]);
 
-        $lampiranValue = null;
+        $lampiranValues = [];
         if ($request->hasFile('lampiran')) {
-            $file = $request->file('lampiran');
-            $originalName = $file->getClientOriginalName();
-            $path = $file->store('lampiran_mahasiswa', 'public');
-            $lampiranValue = $originalName . '|' . $path;
+            foreach ($request->file('lampiran') as $file) {
+                $originalName = $file->getClientOriginalName();
+                $path = $file->store('lampiran_mahasiswa', 'public');
+                $lampiranValues[] = $originalName . '|' . $path;
+            }
         }
 
         $surat = Surat::create([
             'user_id' => Auth::id(),
             'jenis_surat' => $request->jenis_surat,
-            'judul_surat' => $request->jenis_surat, // Set judul_surat to match jenis_surat
             'keperluan' => $request->keperluan,
             'tujuan_surat' => $request->tujuan_surat,
-            'lampiran' => $lampiranValue,
+            'lampiran' => count($lampiranValues) > 0 ? json_encode($lampiranValues) : null,
             'status' => 'Pending',
-            'tanggal_pengajuan' => now(), 
         ]);
 
         return response()->json(['status' => 'sukses', 'data' => $surat], 201);
@@ -47,9 +47,9 @@ class SuratController extends Controller
     public function indexMahasiswa(Request $request)
     {
         $surat = Surat::where('user_id', Auth::id())
-                      ->orderBy('created_at', 'desc')
-                      ->get();
-                      
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+                    
         return response()->json($surat, 200);
     }
 
@@ -82,7 +82,10 @@ class SuratController extends Controller
         if ($request->status === 'Selesai' || $request->status === 'selesai') {
             $filename = 'Surat_' . $surat->id . '_' . time() . '.pdf';
             
-            $pdf = Pdf::loadView('admin.pdf_surat', compact('surat'));
+            $kategori = KategoriSurat::where('nama_kategori', $surat->jenis_surat)->first();
+            $kodeKategori = $kategori ? $kategori->kode_kategori : 'UMUM';
+
+            $pdf = Pdf::loadView('admin.pdf_surat', compact('surat', 'kodeKategori'));
             
             Storage::put('public/surat_selesai/' . $filename, $pdf->output());
             $surat->file_hasil = $filename;
@@ -101,7 +104,11 @@ class SuratController extends Controller
     public function previewPdf($id)
     {
         $surat = Surat::with('user')->findOrFail($id);
-        $pdf = Pdf::loadView('admin.pdf_surat', compact('surat'));
+        
+        $kategori = KategoriSurat::where('nama_kategori', $surat->jenis_surat)->first();
+        $kodeKategori = $kategori ? $kategori->kode_kategori : 'UMUM';
+
+        $pdf = Pdf::loadView('admin.pdf_surat', compact('surat', 'kodeKategori'));
         return $pdf->stream('Preview_Surat_' . $surat->id . '.pdf');
     }
 
@@ -145,13 +152,13 @@ class SuratController extends Controller
         ], 200);
     }
 
-    // Mengambil daftar notifikasi surat masuk untuk Admin (LANGKAH 1)
+    // Mengambil daftar notifikasi surat masuk untuk Admin
     public function adminNotifications()
     {
         $surat = Surat::with('user')
-                      ->orderBy('created_at', 'desc')
-                      ->take(20)
-                      ->get();
+                    ->orderBy('created_at', 'desc')
+                    ->take(20)
+                    ->get();
 
         $notifications = $surat->map(function ($item) {
             $mhsName = $item->user->name ?? 'Mahasiswa';

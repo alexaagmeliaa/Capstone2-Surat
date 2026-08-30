@@ -7,13 +7,12 @@ import ConfirmModal from '../../components/ConfirmModal';
 import { UploadCloud, Send, AlertCircle, FileType, CheckCircle, Building2 } from 'lucide-react';
 
 export default function AjukanSurat() {
-  // --- 1. STATE MANAGEMENT (Menyimpan data komponen) ---
   const [currentUser, setCurrentUser] = useState({ name: '', nim: '' }); 
   const [jenisSuratList, setJenisSuratList] = useState([]); 
   const [jenisSurat, setJenisSurat] = useState(''); 
   const [tujuanSurat, setTujuanSurat] = useState(''); 
   const [keperluan, setKeperluan] = useState(''); 
-  const [fileName, setFileName] = useState(''); 
+  const [fileList, setFileList] = useState([]);
 
   const [popupModal, setPopupModal] = useState({
     isOpen: false,
@@ -23,7 +22,6 @@ export default function AjukanSurat() {
     confirmText: 'OK'
   });
 
-  // --- 2. AMBIL DATA USER & KATEGORI SURAT DARI BACKEND ---
   useEffect(() => {
     const fetchData = async () => {
       const token = sessionStorage.getItem('token');
@@ -69,13 +67,12 @@ export default function AjukanSurat() {
     });
   };
 
-  // --- 4. HANDLE DRAG & DROP FILE LAMPIRAN ---
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFileName(e.target.files[0].name);
+      setFileList(Array.from(e.target.files));
     }
   };
 
@@ -92,14 +89,13 @@ export default function AjukanSurat() {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFileName(e.dataTransfer.files[0].name);
+      setFileList(Array.from(e.dataTransfer.files));
       if (fileInputRef.current) {
         fileInputRef.current.files = e.dataTransfer.files;
       }
     }
   };
 
-  // --- 5. FUNGSI KIRIM (SUBMIT) PENGAJUAN SURAT KE BACKEND ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -110,16 +106,13 @@ export default function AjukanSurat() {
 
     const formData = new FormData();
     formData.append('jenis_surat', jenisSurat);
-    
-    if (tujuanSurat) {
-      formData.append('tujuan_surat', tujuanSurat); 
-    }
-    
+    formData.append('tujuan_surat', tujuanSurat || '-'); 
     formData.append('keperluan', keperluan);
     
-    const file = fileInputRef.current?.files[0];
-    if (file) {
-      formData.append('lampiran', file);
+    if (fileList.length > 0) {
+      fileList.forEach((file) => {
+        formData.append('lampiran[]', file);
+      });
     }
 
     try {
@@ -139,12 +132,15 @@ export default function AjukanSurat() {
         setJenisSurat('');
         setTujuanSurat(''); 
         setKeperluan('');
-        setFileName('');
+        setFileList([]);
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
       } else {
-        showNotification(data.message || "Terjadi kesalahan saat mengirim data ke server.", "danger");
+        const errorMsg = data.errors 
+          ? Object.values(data.errors).flat().join('\n') 
+          : (data.message || "Terjadi kesalahan saat mengirim data ke server.");
+        showNotification(errorMsg, "danger");
       }
 
     } catch (error) {
@@ -153,7 +149,6 @@ export default function AjukanSurat() {
     }
   };
 
-  // Mencari catatan dari kategori surat yang sedang dipilih saat ini
   const selectedKategoriData = jenisSuratList.find(kat => kat.nama_kategori === jenisSurat);
 
   return (
@@ -193,7 +188,6 @@ export default function AjukanSurat() {
 
           <form onSubmit={handleSubmit} className="p-8 md:p-10 space-y-8">
             
-            {/* Bagian 1: Data Pemohon */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Data Pemohon</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,12 +212,10 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* Bagian 2: Detail Pengajuan Surat */}
             <div>
               <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">Detail Pengajuan Surat</h3>
               
               <div className="space-y-6">
-                {/* Dropdown Kategori Surat */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Pilih Jenis Surat <span className="text-red-500">*</span></label>
                   <div className="relative">
@@ -244,22 +236,8 @@ export default function AjukanSurat() {
                       <FileType size={20} />
                     </div>
                   </div>
-
-                  {/* TAMBAHAN: Alert Dinamis untuk Syarat Lampiran */}
-                  {selectedKategoriData && selectedKategoriData.catatan && (
-                    <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-[10px] flex items-start gap-3 transition-all duration-300">
-                      <AlertCircle className="text-amber-600 flex-shrink-0 mt-0.5" size={20} />
-                      <div>
-                        <span className="block text-[13.5px] font-bold text-amber-900 mb-0.5">Syarat Lampiran Khusus:</span>
-                        <p className="text-[13.5px] text-amber-800 leading-relaxed font-medium">
-                          {selectedKategoriData.catatan}
-                        </p>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
-                {/* --- INPUT INSTANSI / PERUSAHAAN (OPSIONAL) --- */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">
                     Ditujukan Kepada <span className="text-sm font-normal text-gray-500">(Opsional, isi jika diperlukan)</span>
@@ -278,7 +256,6 @@ export default function AjukanSurat() {
                   </div>
                 </div>
 
-                {/* Textarea Keperluan Pengajuan */}
                 <div>
                   <label className="block text-[14px] font-semibold text-gray-700 mb-2">Keperluan Pengajuan <span className="text-red-500">*</span></label>
                   <textarea 
@@ -293,10 +270,14 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* Bagian 3: Unggah Lampiran Berkas (Opsional) */}
             <div>
-              <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5">
-                Lampiran Berkas <span className="text-sm font-normal text-gray-500">(Opsional)</span>
+              <h3 className="text-lg font-bold text-gray-800 border-b pb-2 mb-5 flex flex-wrap items-center gap-2">
+                <span>Lampiran Berkas</span>
+                {selectedKategoriData && selectedKategoriData.syarat_lampiran && (
+                  <span className="text-[13px] font-medium text-amber-600 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                    Syarat: {selectedKategoriData.syarat_lampiran}
+                  </span>
+                )}
               </h3>
               
               <div 
@@ -314,23 +295,33 @@ export default function AjukanSurat() {
                   ref={fileInputRef}
                   onChange={handleFileChange}
                   accept=".pdf, .jpg, .jpeg, .png"
+                  multiple 
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" 
                 />
                 
                 <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
                   <div className={`w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mb-4 transition-transform ${isDragging ? 'scale-110' : 'group-hover:scale-110'}`}>
-                    {fileName ? (
+                    {fileList.length > 0 ? (
                       <CheckCircle className="text-[#429961]" size={32} />
                     ) : (
                       <UploadCloud className="text-[#2A60A4]" size={32} />
                     )}
                   </div>
                   
-                  {fileName ? (
-                    <>
-                      <div className="text-[#429961] font-bold text-[17px] mb-1">{fileName}</div>
-                      <p className="text-[14px] text-gray-500">Klik atau timpa file untuk mengganti berkas</p>
-                    </>
+                  {fileList.length > 0 ? (
+                    <div className="w-full">
+                      <div className="text-[#429961] font-bold text-[16px] mb-1">
+                        {fileList.length} file dipilih:
+                      </div>
+                      <ul className="text-[13px] text-gray-600 space-y-1 mt-2 flex flex-wrap justify-center gap-1">
+                        {fileList.map((file, idx) => (
+                          <li key={idx} className="bg-white py-1 px-3 rounded border border-gray-200 inline-block">
+                            📄 {file.name}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="text-[13px] text-gray-400 mt-3">Klik atau seret ulang untuk mengganti berkas</p>
+                    </div>
                   ) : (
                     <>
                       <p className="text-[16px] font-bold text-gray-700 mb-1">
@@ -343,7 +334,6 @@ export default function AjukanSurat() {
               </div>
             </div>
 
-            {/* Tombol Aksi Batal & Kirim */}
             <div className="pt-6 border-t border-gray-100 flex justify-end gap-4">
               <Link 
                 to="/mhs/dashboard" 

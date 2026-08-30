@@ -46,7 +46,7 @@ export default function DataMahasiswa() {
     try {
       const response = await fetch('http://localhost:8000/api/admin/mahasiswa', {
         headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         }
       });
@@ -99,106 +99,77 @@ export default function DataMahasiswa() {
       return 0;
     });
 
-  // --- FUNGSI BARU: IMPORT DATA CSV ---
-  const handleImportCSV = (e) => {
+  // --- 3. FUNGSI IMPORT DATA CSV (DISESUAIKAN DENGAN ROUTE LARAVEL) ---
+  const handleImportCSV = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    const formData = new FormData();
+    formData.append('file', file);
+
     setIsLoading(true);
-    const reader = new FileReader();
-    
-    reader.onload = async (event) => {
-      const text = event.target.result;
-      
-      const delimiter = text.includes(';') ? ';' : ','; 
-      const rows = text.split('\n').map(row => row.trim()).filter(row => row);
-      
-      if (rows.length < 2) {
-        setPopupModal({ isOpen: true, type: 'danger', message: 'File CSV kosong atau format tidak valid!', showCancel: false, confirmText: 'OK' });
-        setIsLoading(false);
-        return;
-      }
-
-      const headers = rows[0].split(delimiter).map(h => h.trim().toLowerCase());
-      
-      let successCount = 0;
-      let failCount = 0;
-
-      for (let i = 1; i < rows.length; i++) {
-        const values = rows[i].split(delimiter).map(v => v.trim());
-        let item = {};
-        
-        headers.forEach((header, index) => {
-          item[header] = values[index] ? values[index].replace(/^"|"$/g, '') : '';
-        });
-
-        try {
-          const payload = {
-            name: item.nama || item.name,
-            email: item.email || `${item.nim || Date.now()}@student.stmik.ac.id`,
-            password: item.password || 'password123',
-            nim: item.nim,
-            prodi: item.prodi || 'Teknik Informatika',
-            jenis_mhs: item.jenis_mhs || 'Reguler',
-            angkatan: item.angkatan || new Date().getFullYear(),
-            jenis_kelamin: item.jenis_kelamin || 'Laki-Laki',
-            dosen_wali: item.dosen_wali || '-',
-            ttl: item.ttl || '-',
-            alamat: item.alamat || '-',
-            status: item.status || 'Aktif',
-          };
-
-          const response = await fetch('http://localhost:8000/api/admin/register-mahasiswa', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(payload)
-          });
-
-          if (response.ok) {
-            successCount++;
-          } else {
-            failCount++;
-          }
-        } catch (error) {
-          failCount++;
-        }
-      }
-
-      setPopupModal({
-        isOpen: true,
-        type: failCount === 0 ? 'success' : 'warning',
-        message: `Proses Import Selesai!\n\n✅ Berhasil: ${successCount} data\n❌ Gagal: ${failCount} data`,
-        showCancel: false,
-        confirmText: 'Tutup',
-        onConfirm: () => fetchMahasiswa()
+    try {
+      const response = await fetch('http://localhost:8000/api/admin/mahasiswa/import', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+          'Accept': 'application/json'
+        },
+        body: formData
       });
 
-      e.target.value = null;
-      setIsLoading(false);
-    };
+      const data = await response.json();
 
-    reader.readAsText(file);
+      if (response.ok) {
+        setPopupModal({
+          isOpen: true,
+          type: 'success',
+          message: data.message || 'Proses Import Berhasil!',
+          showCancel: false,
+          confirmText: 'Tutup',
+          onConfirm: () => fetchMahasiswa()
+        });
+      } else {
+        setPopupModal({
+          isOpen: true,
+          type: 'danger',
+          message: data.message || 'Gagal mengimpor file CSV.',
+          showCancel: false,
+          confirmText: 'Tutup',
+          onConfirm: null
+        });
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      setPopupModal({
+        isOpen: true,
+        type: 'danger',
+        message: 'Terjadi kesalahan koneksi ke server!',
+        showCancel: false,
+        confirmText: 'Tutup',
+        onConfirm: null
+      });
+    } finally {
+      setIsLoading(false);
+      e.target.value = null; 
+    }
   };
 
-  // 3. Fungsi Modal Tambah
+  // 4. Fungsi Modal Tambah
   const openAddModal = () => {
     setModalMode('add');
     setSelectedMhs(null);
     setIsModalOpen(true);
   };
 
-  // 4. Fungsi Modal Edit
+  // 5. Fungsi Modal Edit
   const openEditModal = (data) => {
     setModalMode('edit');
     setSelectedMhs(data);
     setIsModalOpen(true);
   };
 
-  // 5. Handle Simpan (Terhubung ke Backend)
+  // 6. Handle Simpan (Terhubung ke Backend)
   const handleSaveModal = async (formData) => {
     if (modalMode === 'add') {
       try {
@@ -208,7 +179,7 @@ export default function DataMahasiswa() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
             'Accept': 'application/json'
           },
           body: JSON.stringify({
@@ -268,7 +239,7 @@ export default function DataMahasiswa() {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
+            'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
             'Accept': 'application/json'
           },
           body: JSON.stringify({
@@ -324,19 +295,19 @@ export default function DataMahasiswa() {
     }
   };
 
-  // 6. Fungsi Modal Hapus
+  // 7. Fungsi Modal Hapus
   const openDeleteConfirm = (id) => {
     setItemToDelete(id);
     setIsDeleteModalOpen(true);
   };
 
-  // 7. Eksekusi Hapus Data
+  // 8. Eksekusi Hapus Data
   const confirmDelete = async () => {
     try {
       const response = await fetch(`http://localhost:8000/api/admin/mahasiswa/${itemToDelete}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${sessionStorage.getItem('token')}`, // Diubah ke sessionStorage
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
           'Accept': 'application/json'
         }
       });
@@ -379,10 +350,8 @@ export default function DataMahasiswa() {
 
         <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-6">
           
-          {/* Group Filter & Search */}
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
             
-            {/* Search Input */}
             <div className="flex items-center bg-white border border-gray-300 rounded-[12px] px-4 py-3 w-full sm:w-[300px] focus-within:ring-2 focus-within:ring-[#2A60A4] shadow-sm transition-all">
               <Search size={20} className="text-gray-400" />
               <input 
@@ -399,7 +368,6 @@ export default function DataMahasiswa() {
               )}
             </div>
 
-            {/* Filter Program Studi */}
             <div className="relative w-full sm:w-[220px]">
               <select
                 value={selectedProdi}
@@ -415,7 +383,6 @@ export default function DataMahasiswa() {
               </div>
             </div>
 
-            {/* Dropdown Urutkan */}
             <div className="relative w-full sm:w-[190px]">
               <select
                 value={sortBy}
@@ -432,15 +399,13 @@ export default function DataMahasiswa() {
           </div>
 
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            {/* Input Tersembunyi untuk membaca File CSV */}
             <input 
               type="file" 
-              accept=".csv" 
+              accept=".csv,.txt" 
               ref={fileInputRef} 
               className="hidden" 
               onChange={handleImportCSV} 
             />
-            {/* Tombol Pemicu Import */}
             <button 
               onClick={() => fileInputRef.current.click()}
               className="flex items-center justify-center gap-2 bg-white border border-[#2A60A4] text-[#2A60A4] px-5 py-3 rounded-[12px] hover:bg-[#E8F0FA] transition-colors shadow-sm font-semibold text-[14px] w-full lg:w-auto"

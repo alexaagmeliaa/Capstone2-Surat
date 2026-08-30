@@ -10,16 +10,45 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
 
   if (!isOpen || !data) return null;
 
-  const getFileInfo = (lampiran) => {
-    if (!lampiran) return null;
-    if (lampiran.includes('|')) {
-      const [name, path] = lampiran.split('|');
-      return { name, path };
+  // Fungsi helper super aman untuk membersihkan dan memetakan path file lampiran
+  const getFileList = (lampiran) => {
+    if (!lampiran) return [];
+    
+    let rawItems = [];
+    try {
+      const parsed = JSON.parse(lampiran);
+      if (Array.isArray(parsed)) {
+        rawItems = parsed;
+      } else {
+        rawItems = [lampiran];
+      }
+    } catch (e) {
+      rawItems = [lampiran];
     }
-    return { name: lampiran.split('/').pop(), path: lampiran };
+
+    const results = [];
+    rawItems.forEach(item => {
+      if (typeof item === 'string') {
+        // Jika ada karakter pemisah pipe '|'
+        if (item.includes('|')) {
+          const parts = item.split('|');
+          const name = parts[0].replace(/["\[\]]/g, '').trim();
+          let path = parts[1] ? parts[1].replace(/["\[\]]/g, '').trim() : name;
+          results.push({ name, path });
+        } else {
+          // Jika string mentah tanpa pipe
+          const cleanItem = item.replace(/["\[\]]/g, '').trim();
+          if (cleanItem) {
+            results.push({ name: cleanItem.split('/').pop(), path: cleanItem });
+          }
+        }
+      }
+    });
+
+    return results;
   };
 
-  const fileInfo = getFileInfo(data.lampiran);
+  const lampiranFiles = getFileList(data.lampiran);
 
   // Handle pemilihan file PDF manual oleh admin
   const handleFileChange = (e) => {
@@ -81,7 +110,7 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
           <div className="mb-6">
             <p className="text-[13px] font-semibold text-gray-500 mb-2">Ditujukan Kepada (Instansi / Perusahaan)</p>
             <div className="bg-blue-50/50 p-3.5 rounded-lg border border-blue-100 text-[14.5px] font-semibold text-[#182D4A]">
-              {data.tujuan_surat || 'Tidak ada keterangan tujuan instansi.'}
+              {data.tujuan_surat && data.tujuan_surat !== '-' ? data.tujuan_surat : 'Tidak ada keterangan tujuan instansi.'}
             </div>
           </div>
 
@@ -94,25 +123,29 @@ export default function ModalDetailPengajuan({ isOpen, onClose, data, onUpdateSt
 
           <div className="mb-6">
             <p className="text-[13px] font-semibold text-gray-500 mb-2">Lampiran Berkas (Dari Mahasiswa)</p>
-            {fileInfo ? (
-              <div className="flex items-center justify-between bg-blue-50 border border-blue-100 p-4 rounded-lg">
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="p-2 bg-white rounded-md text-[#2A60A4] shadow-sm flex-shrink-0">
-                    <FileText size={20} />
+            {lampiranFiles.length > 0 ? (
+              <div className="space-y-2">
+                {lampiranFiles.map((file, idx) => (
+                  <div key={idx} className="flex items-center justify-between bg-blue-50 border border-blue-100 p-3.5 rounded-lg">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="p-2 bg-white rounded-md text-[#2A60A4] shadow-sm flex-shrink-0">
+                        <FileText size={20} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-bold text-[#182D4A] truncate" title={file.name}>
+                          {file.name}
+                        </p>
+                        <p className="text-[12px] text-gray-500">Berkas Terlampir</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => window.open(`http://localhost:8000/storage/${file.path}`, '_blank')}
+                      className="flex items-center gap-2 text-[13px] font-bold text-[#2A60A4] hover:bg-white px-3 py-1.5 rounded-md transition-colors border border-transparent hover:border-blue-200 flex-shrink-0"
+                    >
+                      <Download size={16} /> Unduh
+                    </button>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-bold text-[#182D4A] truncate" title={fileInfo.name}>
-                      {fileInfo.name}
-                    </p>
-                    <p className="text-[12px] text-gray-500">Berkas Terlampir</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => window.open(`http://localhost:8000/storage/${fileInfo.path}`, '_blank')}
-                  className="flex items-center gap-2 text-[13px] font-bold text-[#2A60A4] hover:bg-white px-3 py-1.5 rounded-md transition-colors border border-transparent hover:border-blue-200 flex-shrink-0"
-                >
-                  <Download size={16} /> Unduh
-                </button>
+                ))}
               </div>
             ) : (
               <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-center">

@@ -17,6 +17,7 @@ class KategoriSurat extends Model
         'nama_kategori',
         'jenis_kategori',
         'deskripsi',
+        'syarat_lampiran', 
         'status'
     ];
 }

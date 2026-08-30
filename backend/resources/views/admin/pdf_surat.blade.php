@@ -20,13 +20,13 @@
             border-collapse: collapse;
         }
         .kop-table td {
-            vertical-align: top; /* Posisi sejajar di bagian atas */
+            vertical-align: top;
         }
         .logo-img {
             width: 120px;
             height: auto;
             display: block;
-            margin-top: -5px; /* Ditarik sedikit ke atas agar posisinya pas */
+            margin-top: -5px;
         }
         .kop-text {
             text-align: center;
@@ -88,6 +88,21 @@
 </head>
 <body>
 
+    @php
+        // Array konversi bulan angka ke Romawi
+        $bulanRomawi = [
+            1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV', 
+            5 => 'V', 6 => 'VI', 7 => 'VII', 8 => 'VIII', 
+            9 => 'IX', 10 => 'X', 11 => 'XI', 12 => 'XII'
+        ];
+        $bulanAngka = date('n', strtotime($surat->created_at));
+        $romawi = $bulanRomawi[$bulanAngka] ?? 'I';
+        $tahun = date('Y', strtotime($surat->created_at));
+        
+        // Format ID 3 digit (contoh: 008)
+        $formattedId = sprintf('%03d', $surat->id);
+    @endphp
+
     <!-- KOP SURAT STMIK BANDUNG -->
     <table class="kop-table">
         <tr>
@@ -108,8 +123,8 @@
         <tr>
             <td width="90">Nomor</td>
             <td width="10">:</td>
-            <td>{{ $surat->id }}/STMIK-Bdg/BAAK/{{ date('Y') }}</td>
-            <td align="right">Bandung, {{ now()->translatedFormat('d F Y') }}</td>
+            <td>{{ $formattedId }}/STMIK-Bdg/{{ $kodeKategori ?? 'BAAK' }}/{{ $romawi }}/{{ $tahun }}</td>
+            <td align="right">Bandung, {{ \Carbon\Carbon::parse($surat->created_at)->translatedFormat('d F Y') }}</td>
         </tr>
         <tr>
             <td>Lampiran</td>
@@ -181,11 +196,11 @@
 
     <!-- TANDA TANGAN WAKIL KETUA I BIDANG AKADEMIK -->
     <div class="ttd-container">
-        <p>Bandung, {{ now()->translatedFormat('d F Y') }}<br>
-           Wakil Ketua I Bidang Akademik,</p>
+        <p>Bandung, {{ \Carbon\Carbon::parse($surat->created_at)->translatedFormat('d F Y') }}<br>
+            Wakil Ketua I Bidang Akademik,</p>
         <div class="ttd-space"></div>
         <p><b>Dr. Yus Jayusman, M.T.</b><br>
-           NIDN. 0401018001</p>
+            NIDN. 0401018001</p>
     </div>
 
 </body>

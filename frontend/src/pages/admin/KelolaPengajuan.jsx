@@ -63,6 +63,7 @@ export default function KelolaPengajuan() {
           nama: item.user?.name || 'Mahasiswa',
           nim: item.user?.nim || '-', 
           jenis: item.jenis_surat, 
+          tujuan_surat: item.tujuan_surat, // <--- Sudah ditambahkan agar data instansi terbawa ke modal
           tanggal: new Date(item.created_at).toLocaleDateString('id-ID', {
             day: 'numeric', month: 'long', year: 'numeric'
           }),

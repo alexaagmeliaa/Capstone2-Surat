@@ -8,18 +8,21 @@ export default function ModalKategori({
   mode = 'add', 
   initialData 
 }) {
+  // 1. Data default awal jika form dibuka dalam keadaan kosong (Tambah Baru)
   const defaultData = { 
     id: null, 
     kode_kategori: '', 
     nama: '', 
     jenis_kategori: '', 
     deskripsi: '', 
-    catatan: '', // TAMBAHAN: State untuk syarat lampiran
+    catatan: '', 
     status: true 
   };
   
+  // 2. State untuk menyimpan data yang diketik di dalam form modal
   const [formData, setFormData] = useState(initialData || defaultData);
 
+  // 3. useEffect untuk mendeteksi apakah modal dipakai untuk Edit atau Tambah
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -28,7 +31,8 @@ export default function ModalKategori({
         nama: initialData.nama || initialData.nama_kategori || '',
         jenis_kategori: initialData.jenis_kategori || '',
         deskripsi: initialData.deskripsi || '',
-        catatan: initialData.catatan || '', // TAMBAHAN: Membaca data catatan jika mode edit
+        // Mengambil data syarat lampiran dari database (mendukung nama properti syarat_lampiran atau catatan)
+        catatan: initialData.syarat_lampiran || initialData.catatan || '', 
         status: initialData.status !== undefined ? Boolean(initialData.status) : true
       });
     } else {
@@ -36,11 +40,13 @@ export default function ModalKategori({
     }
   }, [initialData, isOpen]);
 
+  // Jika modal tertutup, jangan tampilkan apa-apa di layar
   if (!isOpen) return null;
 
+  // 4. Fungsi yang dipanggil saat tombol simpan di dalam modal diklik
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSave(formData);
+    onSave(formData); // Mengirim data formData kembali ke komponen induk (Kategori.jsx)
   };
 
   return (
@@ -65,7 +71,7 @@ export default function ModalKategori({
         {/* Form Modal */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
           
-          {/* Kode Kategori */}
+          {/* Input Kode Kategori */}
           <div>
             <label className="block text-[14px] font-semibold text-gray-700 mb-1">Kode Kategori <span className="text-red-500">*</span></label>
             <input 
@@ -78,7 +84,7 @@ export default function ModalKategori({
             />
           </div>
 
-          {/* Nama Kategori */}
+          {/* Input Nama Kategori */}
           <div>
             <label className="block text-[14px] font-semibold text-gray-700 mb-1">Nama Kategori <span className="text-red-500">*</span></label>
             <input 
@@ -91,7 +97,7 @@ export default function ModalKategori({
             />
           </div>
 
-          {/* Klasifikasi / Jenis Kategori (Dropdown Pilihan Utama) */}
+          {/* Dropdown Klasifikasi / Jenis Kategori */}
           <div>
             <label className="block text-[14px] font-semibold text-gray-700 mb-1">
               Klasifikasi / Jenis Kategori <span className="text-red-500">*</span>
@@ -109,7 +115,7 @@ export default function ModalKategori({
             </select>
           </div>
           
-          {/* Deskripsi */}
+          {/* Textarea Deskripsi */}
           <div>
             <label className="block text-[14px] font-semibold text-gray-700 mb-1">Deskripsi Kategori</label>
             <textarea 
@@ -121,19 +127,19 @@ export default function ModalKategori({
             ></textarea>
           </div>
 
-          {/* TAMBAHAN: Catatan / Syarat Lampiran */}
+          {/* Textarea Syarat Lampiran (Bagian yang baru kita hubungkan) */}
           <div>
             <label className="block text-[14px] font-semibold text-gray-700 mb-1">Syarat Lampiran <span className="text-sm font-normal text-gray-500">(Opsional)</span></label>
             <textarea 
               rows="2"
               value={formData.catatan}
               onChange={(e) => setFormData({ ...formData, catatan: e.target.value })}
-              placeholder="Contoh: Wajib melampirkan fotokopi KTP / Transkrip Nilai..."
+              placeholder="Contoh: Wajib melampirkan fotokopi KTM / Transkrip Nilai..."
               className="w-full bg-white border border-gray-300 rounded-[10px] px-4 py-2.5 text-gray-700 outline-none focus:border-[#2A60A4] focus:ring-1 focus:ring-[#2A60A4] font-medium resize-none"
             ></textarea>
           </div>
 
-          {/* Status Checkbox */}
+          {/* Checkbox Status Aktif */}
           <div className="flex items-center gap-2 pt-1">
             <input 
               type="checkbox" 
@@ -147,7 +153,7 @@ export default function ModalKategori({
             </label>
           </div>
 
-          {/* Tombol Aksi */}
+          {/* Tombol Aksi Batal dan Simpan */}
           <div className="pt-4 flex justify-end gap-3 border-t border-gray-100">
             <button 
               type="button"
@@ -168,6 +174,7 @@ export default function ModalKategori({
 
       </div>
 
+      {/* Styling Animasi Modal */}
       <style dangerouslySetInnerHTML={{__html: `
         .animate-fade-in-up {
           animation: fadeInUp 0.3s ease-out;

@@ -22,18 +22,20 @@ class KategoriController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'kode_kategori'  => 'required|string|max:50|unique:kategori_surats,kode_kategori',
-            'nama_kategori'  => 'required|string|max:255',
+            'kode_kategori'   => 'required|string|max:50|unique:kategori_surats,kode_kategori',
+            'nama_kategori'   => 'required|string|max:255',
             'jenis_kategori' => 'nullable|string|max:100',
             'deskripsi'      => 'nullable|string',
+            'syarat_lampiran' => 'nullable|string', // 🟢 Ditambahkan di sini
             'status'         => 'boolean',
         ]);
 
         $kategori = KategoriSurat::create([
-            'kode_kategori'  => $request->kode_kategori,
-            'nama_kategori'  => $request->nama_kategori,
+            'kode_kategori'   => $request->kode_kategori,
+            'nama_kategori'   => $request->nama_kategori,
             'jenis_kategori' => $request->jenis_kategori,
             'deskripsi'      => $request->deskripsi,
+            'syarat_lampiran' => $request->syarat_lampiran ?? 'Tidak ada', // 🟢 Ditambahkan di sini
             'status'         => $request->status ?? true,
         ]);
 
@@ -50,18 +52,20 @@ class KategoriController extends Controller
         $kategori = KategoriSurat::findOrFail($id);
 
         $request->validate([
-            'kode_kategori'  => 'required|string|max:50|unique:kategori_surats,kode_kategori,' . $id,
-            'nama_kategori'  => 'required|string|max:255',
+            'kode_kategori'   => 'required|string|max:50|unique:kategori_surats,kode_kategori,' . $id,
+            'nama_kategori'   => 'required|string|max:255',
             'jenis_kategori' => 'nullable|string|max:100',
             'deskripsi'      => 'nullable|string',
+            'syarat_lampiran' => 'nullable|string', // 🟢 Ditambahkan di sini
             'status'         => 'boolean',
         ]);
 
         $kategori->update([
-            'kode_kategori'  => $request->kode_kategori,
-            'nama_kategori'  => $request->nama_kategori,
+            'kode_kategori'   => $request->kode_kategori,
+            'nama_kategori'   => $request->nama_kategori,
             'jenis_kategori' => $request->jenis_kategori,
             'deskripsi'      => $request->deskripsi,
+            'syarat_lampiran' => $request->syarat_lampiran ?? 'Tidak ada', // 🟢 Ditambahkan di sini
             'status'         => $request->status,
         ]);
 
